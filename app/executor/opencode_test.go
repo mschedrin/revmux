@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,28 +110,86 @@ func TestOpenCode_Run_argumentsAndStdin(t *testing.T) {
 }
 
 func TestOpenCode_Run_answers(t *testing.T) {
+	const finding = `{"findings":[{"title":"Preserve {nested} content","body":"An escaped quote: \" and a bracket: ["}]}`
 	for _, tt := range []struct {
 		name, answer string
-		valid        bool
+		want         string
 	}{
-		{"clean", `{"findings":[]}`, true},
-		{"fenced", "```json\n{\"findings\":[]}\n```", true},
-		{"prose", "Result:\n{\"findings\":[]}\nDone.", true},
-		{"no JSON", "Nothing found.", false},
-		{"nested in truncated outer", `{"findings":[{"title":"incomplete"}`, false},
-		{"limit words are content", `{"findings":[],"note":"rate limit exceeded"}`, true},
+		{"clean", `{"findings":[]}`, `{"findings":[]}`},
+		{"fenced", "```json\n{\"findings\":[]}\n```", `{"findings":[]}`},
+		{"prose", "Result:\n{\"findings\":[]}\nDone.", `{"findings":[]}`},
+		{"finding", finding, finding},
+		{"wrapped finding", "Result:\n```json\n" + finding + "\n```\nDone.", finding},
+		{"no JSON", "Nothing found.", ""},
+		{"nested in truncated outer", `{"findings":[{"title":"incomplete"}`, ""},
+		{"nested in malformed outer", `{"findings": invalid, "fallback": {"findings":[]}}`, ""},
+		{"nested before syntax error", `{"fallback":{"findings":[]},"findings":invalid}`, ""},
+		{"missing comma", `{"note":"invalid" "fallback":{"findings":[]}}`, ""},
+		{"fenced malformed outer", "```json\n{\"findings\":invalid,\"fallback\":{\"findings\":[]}}\n```", ""},
+		{"later fallback", `{"findings":invalid} {"findings":[]}`, ""},
+		{"array wrapper", `[{"findings":[]}]`, ""},
+		{"limit words are content", `{"findings":[],"note":"rate limit exceeded"}`, `{"findings":[],"note":"rate limit exceeded"}`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			c := executor.NewOpenCode(fakeRunner("emit", writeFixture(t, openCodeAnswer(t, tt.answer))), executor.Opts{})
 			res, err := c.Run(context.Background(), executor.Request{}, nil)
-			if tt.valid {
+			if tt.want != "" {
 				require.NoError(t, err)
-				assert.NotEmpty(t, res.StructuredOutput)
+				assert.Equal(t, tt.want, string(res.StructuredOutput))
 				assert.False(t, res.RateLimited)
 			} else {
 				require.Error(t, err)
 				assert.Empty(t, res.StructuredOutput)
 			}
+		})
+	}
+}
+
+func TestOpenCode_Run_multipartAnswer(t *testing.T) {
+	type part struct{ id, text string }
+	for _, tt := range []struct {
+		name  string
+		parts []part
+		want  string
+	}{
+		{"split answer", []part{{"a", `{"findings":`}, {"b", `[]}`}}, `{"findings":[]}`},
+		{"split finding", []part{{"a", `{"findings":[{"title":"`}, {"b", "Keep this"}, {"c", `"}]}`}},
+			`{"findings":[{"title":"Keep this"}]}`},
+		{"update first in place", []part{{"a", ""}, {"b", `[]}`}, {"a", `{"findings":`}}, `{"findings":[]}`},
+		{"repeat last", []part{{"a", `{"findings":`}, {"b", `[]}`}, {"b", `[]}`}}, `{"findings":[]}`},
+		{"incomplete outer", []part{{"a", `{"findings":`}, {"b", `{"findings":[]}`}}, ""},
+		{"malformed outer", []part{{"a", `{"findings":invalid,"fallback":`}, {"b", `{"findings":[]}}`}}, ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			records := openCodeRecords(t)
+			records[1]["part"].(map[string]any)["text"] = `{"earlier_message":invalid`
+			stream := append([]map[string]any{}, records[:5]...)
+			reason := maps.Clone(records[5])
+			reason["type"] = "reasoning"
+			reason["part"] = maps.Clone(records[5]["part"].(map[string]any))
+			reason["part"].(map[string]any)["text"] = `{"reasoning":invalid`
+			stream = append(stream, reason)
+			tool := maps.Clone(records[2])
+			tool["part"] = maps.Clone(records[2]["part"].(map[string]any))
+			tool["part"].(map[string]any)["messageID"] = records[5]["part"].(map[string]any)["messageID"]
+			stream = append(stream, tool)
+			for _, p := range tt.parts {
+				record := maps.Clone(records[5])
+				fields := maps.Clone(records[5]["part"].(map[string]any))
+				fields["id"], fields["text"] = p.id, p.text
+				record["part"] = fields
+				stream = append(stream, record)
+			}
+			stream = append(stream, records[6])
+			c := executor.NewOpenCode(fakeRunner("emit", writeFixture(t, openCodeBytes(t, stream))), executor.Opts{})
+			res, err := c.Run(context.Background(), executor.Request{}, nil)
+			if tt.want == "" {
+				require.Error(t, err)
+				assert.Empty(t, res.StructuredOutput)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(res.StructuredOutput))
 		})
 	}
 }

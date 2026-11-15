@@ -68,7 +68,7 @@ func (o *OpenCode) Run(ctx context.Context, req Request, sink EventSink) (Result
 	if message == nil {
 		return res, errors.New("opencode completed without answer text")
 	}
-	res.StructuredOutput, err = openCodeJSON(message.parts[message.last])
+	res.StructuredOutput, err = openCodeJSON(message.text())
 	return res, err
 }
 
@@ -89,7 +89,7 @@ func OpenCodeOutputContract(schema json.RawMessage) string {
 		string(schema) + "\n"
 }
 
-// openCodeStream is local to one Run. A stop event selects its message's final text;
+// openCodeStream is local to one Run. A stop event selects its message's text;
 // a later step invalidates that answer until it also completes.
 type openCodeStream struct {
 	messages     map[string]*openCodeMessage
@@ -101,7 +101,16 @@ type openCodeStream struct {
 
 type openCodeMessage struct {
 	parts map[string]string
-	last  string
+	order []string
+}
+
+// text joins parts in first-seen order, using the latest value of each part.
+func (m *openCodeMessage) text() string {
+	var text strings.Builder
+	for _, id := range m.order {
+		text.WriteString(m.parts[id])
+	}
+	return text.String()
 }
 
 type openCodeEvent struct {
@@ -174,7 +183,7 @@ func (s *openCodeStream) part(kind string, part openCodePart, emit func(Event)) 
 			s.messages[part.MessageID] = message
 		}
 		if _, seen := message.parts[part.ID]; !seen {
-			message.last = part.ID
+			message.order = append(message.order, part.ID)
 		}
 		message.parts[part.ID] = part.Text
 		if part.Text != "" {
@@ -232,21 +241,16 @@ func openCodeError(raw json.RawMessage, emit func(Event)) error {
 	return fmt.Errorf("%s: %s", diagnostic.Type, text)
 }
 
-// openCodeJSON accepts fences and prose, but never rescues a nested object from
-// an incomplete outer answer. Keep extraction separate from tool/reasoning text.
+// openCodeJSON accepts fences and prose before the first JSON container.
+// An invalid or non-object container must not yield a nested or later answer.
 func openCodeJSON(text string) (json.RawMessage, error) {
-	for i, ch := range text {
-		if ch != '{' {
-			continue
-		}
-		var out json.RawMessage
-		err := json.NewDecoder(strings.NewReader(text[i:])).Decode(&out)
-		if err == nil {
-			return out, nil
-		}
-		if errors.Is(err, io.ErrUnexpectedEOF) {
-			break
-		}
+	start := strings.IndexAny(text, "{[")
+	if start < 0 || text[start] != '{' {
+		return nil, errors.New("no JSON object in OpenCode answer")
 	}
-	return nil, errors.New("no complete JSON object in OpenCode answer")
+	var out json.RawMessage
+	if err := json.NewDecoder(strings.NewReader(text[start:])).Decode(&out); err != nil {
+		return nil, fmt.Errorf("invalid JSON object in OpenCode answer: %w", err)
+	}
+	return out, nil
 }

@@ -56,10 +56,17 @@ minors is not an iteration and ends the loop — see Stopping.
    this round's fixes, and it repeats every exclusion the earlier rounds carried — a round that drops one
    is a round the excluded finding gates again.
 
-Profile per round follows Step 7: `final` when the fixes stayed inside what the last round flagged,
-`comprehensive` when they spilled into tests or structure.
+**Preserve an explicit executor constraint in every round, including the final confirmation.**
+If the user selected `opencode-only`, `claude-only`, or `codex-only`, keep that profile unless the user
+changes the selection. This rule takes precedence over Step 7 and every `final` or `comprehensive`
+selection below. Use the round's `scope.md` and `goal.md` to state the confirmation scope and gating bar;
+do not change the profile or roster to narrow the review. Check the resolved roster and both stages
+with preflight before each run.
 
-**A round whose fixes were documentation only uses `final`, never `comprehensive`.** A doc fix is new
+Without an explicit executor constraint, profile selection follows Step 7: `final` when the fixes
+stayed inside what the last round flagged, `comprehensive` when they spilled into tests or structure.
+
+**Without an executor constraint, documentation-only fixes use `final`, never `comprehensive`.** A doc fix is new
 prose, and `comprehensive` carries the `docs` lens over it — so the round finds a defect in the sentence
 the last round just wrote, and the loop churns on prose while the code stands still. `final` drops that
 lens and reports nothing below major, which is what a doc-only round is actually confirming.
@@ -92,8 +99,9 @@ logic and leaves no new prose behind, so it terminates the way a Go fix does. Th
 tags it — `code` is executable logic, and a `.py` aggregation bug is that. Only the sentences such a
 script *prints* are prose, and a finding about their wording batches with the rest.
 
-Collect those instead: fix them in one batch at the end of the branch, then one confirming round under
-`final` — whose roster carries no `docs` lens and reports nothing below major. If a round's gating
+Collect those instead: fix them in one batch at the end of the branch, then one confirming round.
+Keep an explicit single-executor profile and state the merge-gate bar in `goal.md`.
+Otherwise use `final`, whose roster carries no `docs` lens and reports nothing below major. If a round's gating
 findings are *all* in that category, the loop is done even though the count did not fall.
 
 That confirming round is the merge gate, so its `goal.md` says so and states the bar, the way Step 2
