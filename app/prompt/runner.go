@@ -1,6 +1,7 @@
 package prompt
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -25,6 +26,14 @@ func parseRunner(s string) (Runner, error) {
 	if s == "" {
 		return Runner{}, nil
 	}
+	// OpenCode uses provider/model#variant. A colon is part of its model ID,
+	// not the legacy effort suffix (for example, ollama/gemma3:4b).
+	if s == executorOpenCode || strings.HasPrefix(s, executorOpenCode+"/") {
+		return parseOpenCodeRunner(s)
+	}
+	if strings.HasPrefix(s, executorOpenCode+":") {
+		return Runner{}, errors.New("OpenCode uses opencode/provider/model#variant, not :effort")
+	}
 
 	out := Runner{}
 	if i := strings.LastIndex(s, ":"); i >= 0 {
@@ -48,12 +57,39 @@ func parseRunner(s string) (Runner, error) {
 	return out, nil
 }
 
+func parseOpenCodeRunner(s string) (Runner, error) {
+	out := Runner{Executor: executorOpenCode}
+	if s == executorOpenCode {
+		return out, nil
+	}
+	ref := strings.TrimPrefix(s, executorOpenCode+"/")
+	base, variant, hasVariant := strings.Cut(ref, "#")
+	provider, model, hasModel := strings.Cut(base, "/")
+	if !hasModel || provider == "" || model == "" || strings.ContainsAny(provider, ": \t\r\n") ||
+		strings.ContainsAny(model, " \t\r\n") || strings.HasSuffix(model, "/") {
+		return Runner{}, fmt.Errorf("invalid OpenCode model %q, want opencode/provider/model[#variant]", s)
+	}
+	if hasVariant && (variant == "" || strings.ContainsAny(variant, "# \t\r\n")) {
+		return Runner{}, fmt.Errorf("invalid OpenCode variant in %q, use one non-empty #variant", s)
+	}
+	out.Model = ref
+	return out, nil
+}
+
 // or returns r with anything it omits taken from fallback. The executor is the one field that cannot be
 // inherited piecemeal: an entry naming a binary brings its own model, or it would run the fallback's
 // model on the wrong binary — the pairing this whole type exists to prevent.
 func (r Runner) or(fallback Runner) Runner {
 	if r.Executor == "" {
 		return fallback
+	}
+	if r.Executor == executorOpenCode {
+		if r.Model == "" && fallback.Executor == executorOpenCode {
+			r.Model = fallback.Model
+		}
+		// Native variants belong to the selected model. Never inherit a legacy effort.
+		r.Effort = ""
+		return r
 	}
 	if r.Executor != fallback.Executor {
 		// a different binary: only the effort, which is not a property of either model, can carry over

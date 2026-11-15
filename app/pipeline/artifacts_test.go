@@ -271,9 +271,13 @@ func TestPipeline_Run_artifacts(t *testing.T) {
 
 // artifactHarness runs both optional stages over two findings per directory, so verify fans out to one
 // group per directory rather than merging them, and returns what prompts the runner actually received.
-func artifactHarness(t *testing.T) (*harness, func() []string) {
+func artifactHarness(t *testing.T, extra ...map[string]string) (*harness, func() []string) {
 	t.Helper()
-	h := newHarness(t)
+	var files map[string]string
+	if len(extra) > 0 {
+		files = extra[0]
+	}
+	h := newHarnessWith(t, files)
 	h.cfg.NoSynthesis, h.cfg.NoVerify = false, false
 	h.cfg.NewRunner = h.runner(map[string]executor.Result{
 		"bugs": {StructuredOutput: findingsJSON(
@@ -297,9 +301,16 @@ func artifactHarness(t *testing.T) (*harness, func() []string) {
 				// claude its narration contract — and this mock stands in for one of them. Recording
 				// the prompt as handed over would make "the archived prompt is what a process
 				// received" pass against bytes no process would ever receive.
-				prompt := req.Prompt + executor.ClaudeNarrationContract(req.Schema)
-				if spec.Executor == executorCodex {
+				var prompt string
+				switch spec.Executor {
+				case "claude":
+					prompt = req.Prompt + executor.ClaudeNarrationContract(req.Schema)
+				case executorCodex:
 					prompt = req.Prompt + executor.CodexOutputContract(req.Schema)
+				case "opencode":
+					prompt = req.Prompt + executor.OpenCodeOutputContract(req.Schema)
+				default:
+					return executor.Result{}, errors.New("unknown test executor")
 				}
 				mu.Lock()
 				prompts = append(prompts, prompt)

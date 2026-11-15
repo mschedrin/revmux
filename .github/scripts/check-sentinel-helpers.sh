@@ -24,7 +24,7 @@ set -eu
 
 files="$*"
 if [ -z "$files" ]; then
-    files=".claude-plugin/skills/revmux/scripts/launch-revmux.sh plugins/codex/skills/revmux/scripts/launch-revmux.sh"
+    files=".claude-plugin/skills/revmux/scripts/launch-revmux.sh plugins/codex/skills/revmux/scripts/launch-revmux.sh .opencode/skills/revmux/scripts/launch-revmux.sh"
 fi
 
 status=0

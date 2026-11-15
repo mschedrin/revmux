@@ -83,7 +83,7 @@ produces a binary named `revmux`, since Go names it after the last path element.
 - `app/revmux/artifacts.go` — the artifacts `package main` owns: `manifest.json`, `report.md`, `findings.json`
 - `app/revmux/progress.go` — the non-TTY event subscriber (timestamped lines to stderr), plus the run's closing
   summary, which the pipeline emits no event for
-- `app/executor/` — supervised subprocess execution for claude and codex
+- `app/executor/` — supervised subprocess execution for Claude, Codex and OpenCode
 - `app/prompt/` — front matter and roster parsing, lens composition, `{{VAR}}` substitution, `go:embed` defaults
 - `app/pipeline/` — the three stages, fan-out, stagger, degrade policy, typed event channel
 - `app/finding/` — `Finding` and `Report` types, the per-stage JSON schemas, markdown and JSON rendering
@@ -97,19 +97,20 @@ produces a binary named `revmux`, since Go names it after the last path element.
 - `app/ui/` — bubbletea TUI, single `Model` with state grouped into sub-structs, files split by concern
 - `app/*/mocks/` — moq-generated, never edited by hand
 
-`.claude-plugin/` and `plugins/codex/` ship the **caller** as a skill, one tree per harness.
+`.claude-plugin/`, `plugins/codex/` and `.opencode/skills/revmux/` ship the **caller**, one tree per harness.
 `.claude-plugin/marketplace.json` publishes the Claude Code package; `.agents/plugins/marketplace.json`
 publishes the Codex package from `plugins/codex/`, whose `.codex-plugin/plugin.json` declares its skill tree.
 They contain no Go and are not built; they are documentation plus four shell scripts.
-The two trees carry duplicate copies of `references/` and `scripts/` on purpose — a plugin has to be
+The three trees carry duplicate copies of `references/` and `scripts/` on purpose — a skill has to be
 self-contained once installed, so a shared directory is not available to them.
-**A change to one must be made to the other**, and every intended divergence is in `SKILL.md` and is a
+**A shared change must reach all three**, and every intended divergence is in `SKILL.md` and is a
 capability one harness has and the other does not: script-path resolution, the harness's own way of
 asking a question, and whether round preparation is delegated.
-Both hand the git measuring, the task match and the context writing to one subagent, so a dozen tool
+Claude and Codex hand the git measuring, task match and context writing to one subagent, so a dozen tool
 calls the user has no use for stay out of the session that reports the review — Claude Code through the
 Agent tool, codex through its own built-in `spawn_agent` subagents, which are on by default in 0.146.0 and
 work under `codex exec`.
+OpenCode can prepare the round directly. Its full TUI and Mini use the same tools and skill discovery.
 The codex text names no tool: which backend is live there is chosen by model metadata rather than by the
 `multi_agent_v2` feature flag, so it authorizes the workflow in words — "spawn one subagent", "wait", "use
 only its final summary" — and a hardcoded `collaboration.spawn_agent` would be wrong for half the models.
@@ -347,6 +348,8 @@ and handed to both renderers, so the TUI and `--no-tui` never color the same age
 **One `model:` string is the whole runner selection, and a profile's covers the whole review.**
 `<binary>[/<model>][:<effort>]` — `claude`, `claude/opus:high`, `codex/gpt-6.1-sol`. There is no `executor:`
 key and no `effort:` key in any prompt file.
+OpenCode uses `opencode[/provider/model[#variant]]` instead. Its model preserves native colon tags,
+extra slashes and custom variants; effort stays empty. It never inherits a foreign model or legacy effort.
 The three are one field because they are not independent: a model belongs to a binary, so separate keys let
 a file state a pairing that cannot run, and every layer that inherited one without the other recreated it —
 which is exactly how the `--lenses` override came to build a claude agent asked for `gpt-5.6-sol`.
@@ -476,7 +479,7 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   One that changes what a stage resolves to needs `revmux config` as a fifth site: `profileInfo.Stages`
   reports the resolution rather than the override, so a key it does not carry is invisible to the caller
   choosing the profile.
-- A change to the `model:` grammar is `app/prompt/runner.go` plus every authored file that uses it: eight
+- A change to the `model:` grammar is `app/prompt/runner.go` plus every authored file that uses it: nine
   shipped profiles, both stage files, the model-string sections of `site/docs.html` and
   `site/reference.html`, `.claude/rules/prompts.md`, and the
   fixtures in `app/prompt` and `app/pipeline` tests. The parsed form reaches `AgentSpec`, `Stage` and
@@ -502,12 +505,12 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   stale silently — the stdout carve-out above, the same list in `.claude/rules/config.md`, the
   "all five print JSON" sentence plus the table in README, the subcommand table in `site/reference.html`,
   the per-command sections and their sidebar entries in `site/docs.html`, the project-structure list in this
-  file, and the subcommand sections in **both** skill trees.
+  file, and the subcommand sections in **all three** skill trees.
 - A new lens file needs an entry in at least one shipped profile, or nothing will ever run it.
   Then the lens table in `site/docs.html`, the two split by what they read in `site/reference.html`, the
   lens names the landing page's profiles section spells out in prose, the layout block in
   `.claude/rules/prompts.md`, the lens table in
-  `references/invocation.md` in **both** skill trees, and three literal inventories in the tests: the name
+  `references/invocation.md` in **all three** skill trees, and three literal inventories in the tests: the name
   set in `prompt_test.go`, and in `defaults_test.go` both the count and the message enumerating every
   shipped lens by name.
   There are thirteen — eight reading a change, five reading a filed item — and nothing derives that number,
@@ -529,7 +532,7 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   adding a profile draws attention to it, and `SKILL.md` points an executing agent at
   `references/invocation.md` as the authority on profiles — so a stale count there has the skill
   contradicting the binary.
-  The `diff -r` rule below does not cover it: that governs mirroring an edit between the two trees,
+  The `diff -r` rule below does not cover it: that governs mirroring an edit between the three trees,
   which is a different question from finding the file in the first place.
   Then the counts in this section, which name the set literally and go stale silently — the
   three bullets below and the `model:` grammar bullet above.
@@ -548,33 +551,33 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   that list to make a failing run pass is the mechanism the derived-from-`ProfileNames()` design exists to
   prevent, and the three that are there each name the review shape their bar is written for.
 - **The severity bar is duplicated in every profile body** and nothing composes it from one place:
-  `comprehensive`, `codex-only`, `claude-only`, `focused` and `grill-me` carry a byte-identical
+  `comprehensive`, `codex-only`, `claude-only`, `opencode-only`, `focused` and `grill-me` carry a byte-identical
   `## Severity bar` section, `final` carries a two-severity variant of the same text, `triage` carries
   a bar that is not a variant of it at all — its severities rate how much a point bears on the decision,
   because it reads a filed item and there is no runtime for anything to go wrong at — and `expert` carries
   a third shape, rating what goes wrong if the thing is built and run as written, because what it reviews
   may be a plan rather than a change.
-  A change to what a severity means is eight edits, and the five identical copies must stay identical —
+  A change to what a severity means is nine edits, and the six identical copies must stay identical —
   two profiles disagreeing about what `major` is means the same defect gates one review shape and not
   another, which reads as the model being inconsistent rather than the prompts being out of step.
-  A code-review wording change stops at the five: propagating it into `triage` or `expert` is what the
+  A code-review wording change stops at the six: propagating it into `triage` or `expert` is what the
   separate bars exist to prevent.
   `.claude/rules/prompts.md` calls the body "the shared preamble and severity bar"; shared across the
   agents of one run, not across profiles.
-  **`## What not to report` is the second such block**, byte-identical in six of the eight, and it is the
+  **`## What not to report` is the second such block**, byte-identical in seven of the nine, and it is the
   one a finder consults before writing anything down — so a rule added to one profile and not the others
   makes the same finding reportable under one review shape and suppressed under another.
   `triage` and `expert` are the exceptions and carry their own, since the shipped copy is written about
   diffs and defers to the linters and tests a review runs after: a panel reading an issue is doing
   neither, and `expert` may be reading a plan where nothing ran and no line was touched.
   `TestDefaults_WhatNotToReportContract` exempts both by name and asserts their blocks separately, exactly
-  as the severity contract does — the equality check over the other six is not weakened to accommodate
+  as the severity contract does — the equality check over the other seven is not weakened to accommodate
   either.
   **`grill-me`'s `## Stance` section is the third**, and it duplicates a *lens* rather than another
   profile: roughly half of `lenses/adversarial.md` is copied into it verbatim, including the "Work the
   seams" bullets and the two paragraphs on titling the mechanism.
   The copy exists because that profile puts the adversarial stance on all four agents, where it is
-  preamble rather than a lens — but the six profiles that name `adversarial` compose that file itself, so an
+   preamble rather than a lens — but the other profiles that name `adversarial` compose that file itself, so an
   edit there leaves `grill-me` stale and the two shapes then instruct agents differently about severity
   inflation in the profile whose whole premise is pushing against that bar.
   What is deliberately **not** copied stays not copied: `adversarial.md` tells its agent not to repeat
@@ -584,8 +587,8 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   snapshot is named once and read back by that name.
   No layout name is spelled anywhere else. What does not follow them
   is everything that *describes* the shape: `task.Paths` and its JSON field names, the round tree in README,
-  the two in this file, the round and archive trees on all three site pages, and both skill trees.
-  **Seven files draw an actual tree diagram**, and that is the set a new artifact has to appear in:
+  the two in this file, the round and archive trees on all three site pages, and all three skill trees.
+  **Eight files draw an actual tree diagram**, and that is the set a new artifact has to appear in:
   this file, `README.md`, `site/index.html`, `site/docs.html`, `site/reference.html`, and
   `references/output.md` in **each** skill tree. That last pair is the one this bullet used to miss — it
   points at `task-dir.md`, which describes `input/` and draws no archive tree at all, so an artifact added
@@ -602,10 +605,10 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   "Entries carry" line, which is a second place inside a file the write step already put on the list.
   Then `scripts/task-state.sh`, in both its usage header and the hardcoded
   `for key in description url branch base meta_error rounds_error` loop.
-  The last four are in **both** skill trees.
+  The last four are in **all three** skill trees.
 - Anything the shipped skill documents — a flag, a profile, the JSON shape, an exit code, the task
-  directory layout — needs the same edit in **both** skill trees, since they hold duplicate copies of
-  `references/` and `scripts/`. A `diff -r` of the two `references/` and `scripts/` directories must
+  directory layout — needs the same edit in **all three** skill trees, since they hold duplicate copies of
+  `references/` and `scripts/`. Pairwise `diff -r` of the `references/` and `scripts/` directories must
   come back empty; only `SKILL.md` differs.
   A **new** reference file additionally needs the `references/` line in `plugins/codex/README.md`, which
   enumerates them by name and goes stale silently — the `SKILL.md` pointer to it is what an agent
@@ -624,28 +627,22 @@ Stamping happens in `find`, not synthesis, or `--no-synthesis` runs carry invent
   It states revmux's flags, profiles, JSON field names, exit codes and archive layout as fact, and an
   agent executes what it says without checking. A skill describing a flag that no longer behaves that way
   is worse than one that omits it: the caller acts on it confidently and has to recover afterwards.
-  Treat `.claude-plugin/skills/` and `plugins/codex/` as consumers of `app/revmux/config.go`, `app/finding/`
+  Treat `.claude-plugin/skills/`, `plugins/codex/` and `.opencode/skills/` as consumers of `app/revmux/config.go`, `app/finding/`
   and `app/archive/` the way `README.md` and `site/` are.
 - **The plugin version is maintainer work, never a contributor's.**
   It is stated three times — `version:` in `.claude-plugin/plugin.json`, in the `plugins` entry of
   `.claude-plugin/marketplace.json`, and in `plugins/codex/.codex-plugin/plugin.json` — and all three must
   match, which `make check-plugins` asserts.
   Bump it after merging a contributor's PR rather than asking him to.
-- **How revmux is installed is stated in twelve places across eleven files**, and every one of them leads
-  with Homebrew, since that is the path a reader should take.
+- **Installation instructions must target this fork**, using a source build from `feat/opencode-v2`.
   The README's install section; `site/index.html` twice, in the hero copy line and in the install section;
   `site/docs.html`'s install section; `site/llms.txt`; `SKILL.md`'s absent-revmux block, `preflight.sh`'s
-  missing-binary hint and `launch-revmux.sh`'s, each in **both** skill trees; and the requirements list in
+  missing-binary hint and `launch-revmux.sh`'s, each in **all three** skill trees; and the requirements list in
   `plugins/codex/README.md`.
   The two scripts print theirs at the moment a user is blocked, so a stale command there is read as the
   answer rather than as documentation.
-  What backs it is `homebrew_casks:` in `.goreleaser.yml`, published to `umputun/homebrew-apps` when a `v*`
-  tag is pushed. It is a cask rather than a formula — the `brews:` key is deprecated — so the tap entry lands
-  in `Casks/`, a post-install hook clears the macOS quarantine flag from the unsigned binary, and Linux is
-  served by the release archives and the `.deb` and `.rpm` packages rather than by brew, which supports
-  casks on macOS only.
-  `goreleaser check` is the gate on that file and must pass; `goreleaser release --snapshot --clean
-  --skip=publish` renders the cask into `dist/homebrew/Casks/` without publishing anything.
+  `.goreleaser.yml` builds archives and Linux packages for this repository. No Homebrew tap is configured.
+  Do not restore upstream tap publishing in this fork. `goreleaser check` must pass after release edits.
 - A new prompt input — a variable, an injected block, a per-agent knob — needs a matching record in
   `manifest.json` or the archived prompt, or a reflection agent cannot tell what shaped the review.
 - Changing any of the three stage schemas means changing the embedded JSON under `app/finding/`

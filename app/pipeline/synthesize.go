@@ -51,8 +51,11 @@ func (s *synthesizer) run(ctx context.Context, sources []sourceResult) (finding.
 	if err != nil {
 		return finding.Report{}, fmt.Errorf("compose synthesis prompt: %w", err)
 	}
-	s.save(path.Join(task.StagePromptDir, stageSynthesis+".md"),
-		[]byte(archivedPrompt(stage.Executor, text, finding.SynthesisSchema())))
+	archived, err := archivedPrompt(stage.Executor, text, finding.SynthesisSchema())
+	if err != nil {
+		return finding.Report{}, err
+	}
+	s.save(path.Join(task.StagePromptDir, stageSynthesis+".md"), []byte(archived))
 
 	// a stage announces itself and closes itself, exactly as a finder does. Without the pair its row
 	// appears from nowhere on its first tool call and then never leaves "running", so it reads as

@@ -7,7 +7,7 @@ allowed-tools: [Bash, Read, Edit, Write, Grep, Glob, Agent, AskUserQuestion, Mon
 
 # revmux — supervised multi-agent code review
 
-revmux spawns and supervises parallel `claude --print` and `codex exec` subprocesses, watches each for
+revmux spawns and supervises parallel Claude, Codex and OpenCode subprocesses, watches each for
 stalls, retries what hangs, and returns findings on stdout.
 
 It does no scope detection, no git, no PR fetching, no source modification. This skill does that half.
@@ -115,9 +115,9 @@ it never touches.
 If revmux is absent:
 
 ```
-brew install umputun/apps/revmux                   # macOS
-go install github.com/umputun/revmux/app/revmux@latest
-git clone https://github.com/umputun/revmux.git && cd revmux && make install
+git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git
+cd revmux
+make install
 ```
 
 **In a linked worktree, tell the user what that means, once a session.** It is one when the two
@@ -323,6 +323,7 @@ scale numbers are what Step 4's one-line announcement is built from.
 | `final` | `bugs+impl` plus codex peer, nothing below major | pre-merge |
 | `claude-only` | the same four lens splits, all on claude | no codex available |
 | `codex-only` | the same four lens splits on codex, and synthesis and verify with them | no claude available |
+| `opencode-only` | four OpenCode agents and both stages, using the configured default model | OpenCode review |
 | `grill-me` | `bugs+impl` and `architecture+quality`, each once on claude and once on codex, all reading against the change | the user wants it torn apart |
 | `expert` | two agents at xhigh, codex `gpt-6-astra:xhigh` and claude `fable:xhigh`, each carrying all eight lenses | a plan, or a change nobody wants to get wrong. Slow and expensive; pick it when he says so, not by default |
 | `triage` | `facts` (grounding + precedent), `thesis`, `antithesis`, `cost` on codex | a filed item rather than a diff; needs `--no-synthesis --verify-group-by source`, `references/triage.md` |
@@ -345,6 +346,7 @@ fails the run.
 | last, pre-merge, before merge, strict | `final` |
 | claude only, no codex, skip codex | `claude-only` |
 | codex only, no claude, codex alone | `codex-only` |
+| OpenCode only, use OpenCode | `opencode-only` |
 | grill me, tear it apart, be brutal, no mercy, adversarial | `grill-me` |
 | expert, best models, highest effort, spare no expense, use astra and fable | `expert` — and only on words like these, never inferred from the subject |
 | triage this, is this worth doing, should we accept this, should I close this | `triage`, and the subject is a filed item rather than a diff — `references/triage.md`, which owns the flags it needs |

@@ -176,13 +176,19 @@ func TestRun_config(t *testing.T) {
 			assert.NotEmpty(t, p.Roster, "profile %s reports no roster", p.Name)
 			for _, a := range p.Roster {
 				assert.NotEmpty(t, a.Lenses, "agent %s carries no lens", a.Name)
-				assert.NotEmpty(t, a.Model, "agent %s reports no model", a.Name)
-				assert.NotEmpty(t, a.Effort, "agent %s reports no effort", a.Name)
+				if p.Name == "opencode-only" {
+					assert.Equal(t, "opencode", a.Executor)
+					assert.Empty(t, a.Model)
+					assert.Empty(t, a.Effort)
+				} else {
+					assert.NotEmpty(t, a.Model, "agent %s reports no model", a.Name)
+					assert.NotEmpty(t, a.Effort, "agent %s reports no effort", a.Name)
+				}
 				assert.NotEmpty(t, a.Executor, "agent %s reports no executor", a.Name)
 				assert.NotEmpty(t, a.Color, "agent %s reports no color, so the palette assignment is invisible", a.Name)
 			}
 		}
-		assert.Equal(t, []string{"claude-only", "codex-only", "comprehensive", "expert", "final", "focused", "grill-me", "triage"}, names)
+		assert.Equal(t, []string{"claude-only", "codex-only", "comprehensive", "expert", "final", "focused", "grill-me", "opencode-only", "triage"}, names)
 
 		set, err := prompt.Load(prompt.LoadOpts{})
 		require.NoError(t, err)
@@ -1089,7 +1095,7 @@ func TestRunOpts_runnerFactory(t *testing.T) {
 		}{
 			{"claude", pipeline.RunnerSpec{Executor: "claude"}, &executor.Claude{}},
 			{"codex", pipeline.RunnerSpec{Executor: "codex"}, &executor.Codex{}},
-			{"empty defaults to claude", pipeline.RunnerSpec{}, &executor.Claude{}},
+			{"opencode", pipeline.RunnerSpec{Executor: "opencode"}, &executor.OpenCode{}},
 		}
 
 		r := newRunOpts(t, options{IdleTimeout: time.Minute, HardTimeout: 20 * time.Minute})
@@ -1101,6 +1107,11 @@ func TestRunOpts_runnerFactory(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				assert.IsType(t, tt.want, factory(tt.spec))
 			})
+		}
+		for _, name := range []string{"", "unknown"} {
+			res, err := factory(pipeline.RunnerSpec{Executor: name}).Run(context.Background(), executor.Request{}, nil)
+			require.ErrorContains(t, err, "unknown executor")
+			assert.Empty(t, res.Raw, "no CLI is launched")
 		}
 	})
 }

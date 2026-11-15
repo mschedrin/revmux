@@ -221,6 +221,7 @@ will not read, and an unwritable `./.revmux/` under `revmux init`.
 | `final` | `bugs+impl` plus the codex peer, nothing below major reported | last look before merging |
 | `claude-only` | `bugs+impl`, `arch+quality`, `docs+tests`, `adversarial` — all on claude | codex is unavailable or unwanted |
 | `codex-only` | the same four splits on codex, synthesis and verify included — no claude anywhere | claude is unavailable or unwanted |
+| `opencode-only` | four OpenCode reviewers plus OpenCode synthesis and verification | use the configured OpenCode default |
 | `grill-me` | `bugs+impl` and `architecture+quality`, each run once on claude and once on codex, every agent reading against the change | the user asked to be grilled; corroboration between two vendors on one lens pair is the point |
 | `expert` | two agents at xhigh — codex `gpt-6-astra:xhigh` and claude `fable:xhigh` — each carrying all eight lenses, both stages on fable | a plan, or a change nobody wants to get wrong. Both agents read everything, so agreement between them is real corroboration rather than two halves of one review |
 | `triage` | `facts` (grounding + precedent), `thesis`, `antithesis` on claude, plus `cost` on codex | the subject is a filed item rather than a diff — an issue, a proposal, a discussion |
@@ -567,14 +568,37 @@ form: the decision is the user's, one task per call.
 
 ## Environment
 
-revmux drives the model CLIs as subprocesses, so both must already be installed and authenticated:
+Install and authenticate the model CLIs selected by the profile:
 
 - `claude` — every lens agent and both model stages run on it by default
 - `codex` — needed when a profile, a roster entry or a stage names it in its `model:`. `claude-only`
-  needs claude alone and `codex-only` needs codex alone; the other six shipped profiles need both.
-  `preflight.sh <profile>` answers it for the profile that will actually run
+  needs claude alone, `codex-only` needs codex alone, and `opencode-only` needs opencode alone;
+  the other six shipped profiles need claude and codex.
+- `opencode` — needed by OpenCode model selections.
 
-`ANTHROPIC_API_KEY` is stripped from the child environment by default so `claude` uses interactive
+`preflight.sh <profile>` checks the resolved selection.
+
+### OpenCode models and reasoning
+
+Tested with OpenCode v2.3.0. Use `model: opencode` for its configured default, or
+`model: opencode/provider/model#variant` for an explicit model and reasoning variant.
+These provider/model names are placeholders: select an entry from your current OpenCode catalog.
+Each reviewer and stage can have its own reference. Colons and additional slashes in model IDs
+are preserved. The Claude/Codex `:effort` syntax does not apply to OpenCode.
+
+OpenCode reviews use `run --format json --auto --archived --standalone --thinking`.
+`#variant` selects reasoning; `--thinking` supplies reasoning activity for the idle watchdog.
+Some models can remain silent longer than the default timeout; increase `--idle-timeout` if needed.
+Each run owns a private server, which exits after its client closes.
+Provider credentials, including `ANTHROPIC_API_KEY`, remain available to OpenCode.
+The review-only instruction is prompt-based, not a sandbox.
+
+The OpenCode caller skill works from the full TUI and `opencode mini`. Mini does not run reviewers.
+For environment-only OpenCode configuration, prefer direct background launch. The overlay launcher
+forwards the configuration directories listed above, but an existing multiplexer server can retain
+an older environment. The launcher does not place API keys or inline configuration in command arguments.
+
+For Claude and Codex, `ANTHROPIC_API_KEY` is stripped from the child environment by default so `claude` uses interactive
 subscription auth; `--preserve-anthropic-api-key` passes it through for key-based auth. `CLAUDECODE`
 is always stripped — a `claude` child refuses to start when it believes it is a nested session, which
 is exactly the situation when an agent invokes revmux.

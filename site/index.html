@@ -51,8 +51,8 @@
         "operatingSystem": "macOS, Linux",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "author": { "@type": "Person", "name": "Umputun", "url": "https://github.com/umputun" },
-        "codeRepository": "https://github.com/umputun/revmux",
-        "downloadUrl": "https://github.com/umputun/revmux/releases",
+        "codeRepository": "https://github.com/mschedrin/revmux",
+        "downloadUrl": "https://github.com/mschedrin/revmux/releases",
         "license": "https://opensource.org/licenses/MIT"
       }
     </script>
@@ -82,7 +82,7 @@
           <a href="#blueprint">blueprint</a>
           <a href="/docs">docs</a>
           <a href="/reference">reference</a>
-          <a class="ext" href="https://github.com/umputun/revmux">github</a>
+          <a class="ext" href="https://github.com/mschedrin/revmux">github</a>
         </nav>
         <details class="nav-mobile">
           <summary aria-label="menu">
@@ -99,7 +99,7 @@
             <a href="#install">install</a>
             <a href="/docs">docs</a>
             <a href="/reference">reference</a>
-            <a href="https://github.com/umputun/revmux">github</a>
+            <a href="https://github.com/mschedrin/revmux">github</a>
           </nav>
         </details>
       </div>
@@ -121,12 +121,12 @@
             </p>
             <div class="hero-cta">
               <a class="btn primary" href="/docs">read the docs</a>
-              <a class="btn" href="https://github.com/umputun/revmux">source</a>
+              <a class="btn" href="https://github.com/mschedrin/revmux">source</a>
             </div>
             <div class="hero-install">
               <span class="copyline">
                 <span class="prompt">$</span>
-                <span id="install-cmd">brew install umputun/apps/revmux</span>
+                <span id="install-cmd">git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git</span>
                 <button type="button" data-copy="install-cmd">copy</button>
               </span>
               <p class="hero-note">
@@ -654,6 +654,10 @@ roster receives, including what counts as critical, major and minor here.</pre>
                   <td class="prose">the same splits on codex, both stages with them, no claude anywhere</td>
                 </tr>
                 <tr>
+                  <td>opencode-only</td>
+                  <td class="prose">four OpenCode lens groups and both stages, using the configured default model</td>
+                </tr>
+                <tr>
                   <td>grill-me</td>
                   <td class="prose">
                     two lens splits run once on claude and once on codex, every agent reading against the change
@@ -839,7 +843,7 @@ roster receives, including what counts as critical, major and minor here.</pre>
             <div class="card">
               <span class="eyebrow">claude code</span>
               <h3>Plugin install</h3>
-              <p><code>claude plugin marketplace add umputun/revmux</code></p>
+              <p><code>claude plugin marketplace add mschedrin/revmux</code></p>
               <p><code>claude plugin install revmux@revmux</code></p>
               <p class="small" style="margin-top: 14px">
                 Then ask for a review in words: revmux this branch, revmux pr 123, re-review after fixes.
@@ -848,16 +852,19 @@ roster receives, including what counts as critical, major and minor here.</pre>
             <div class="card">
               <span class="eyebrow">codex cli</span>
               <h3>Plugin install</h3>
-              <p><code>codex plugin marketplace add umputun/revmux</code></p>
+              <p><code>codex plugin marketplace add mschedrin/revmux</code></p>
               <p><code>codex plugin add revmux@revmux</code></p>
               <p class="small" style="margin-top: 14px">
-                Same reference material and the same scripts. Both trees carry <code>preflight.sh</code>,
+                Same reference material and the same scripts. All three trees carry <code>preflight.sh</code>,
                 <code>task-state.sh</code>, <code>launch-revmux.sh</code> and <code>analyze-corpus.py</code>.
                 If you previously copied or symlinked the skill into
                 <code>~/.codex/skills/revmux</code>, remove that copy after installing the plugin.
               </p>
             </div>
           </div>
+
+          <p>OpenCode TUI and Mini: copy <code>.opencode/skills/revmux</code> from this clone to
+            <code>~/.config/opencode/skills/revmux</code>, then ask for an OpenCode-only review.</p>
 
           <div class="sec-body" style="margin-top: 40px">
             <p class="col-note">
@@ -911,21 +918,22 @@ roster receives, including what counts as critical, major and minor here.</pre>
               its own
             </p>
             <div>
-              <pre class="code"><b>brew install umputun/apps/revmux</b>   <span class="c-dim"># macOS</span>
+              <p>This fork adds OpenCode V2 support to upstream v0.2.7. Build with Go 1.26 or newer.</p>
+              <pre class="code" tabindex="0" role="region" aria-label="Install the OpenCode fork"><code>git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git
+cd revmux
+make install
 
-<span class="c-dim"># linux, from a release: .tar.gz, .deb and .rpm for amd64 and arm64</span>
-dpkg -i revmux_&lt;version&gt;_linux_amd64.deb
-
-<span class="c-dim"># or with a go toolchain</span>
-go install github.com/umputun/revmux/app/revmux@latest
+<span class="c-dim"># OpenCode TUI or Mini caller skill</span>
+mkdir -p ~/.config/opencode/skills
+cp -R .opencode/skills/revmux ~/.config/opencode/skills/
 
 <span class="c-dim"># then the skill, in Claude Code</span>
-<b>claude plugin marketplace add umputun/revmux</b>
+<b>claude plugin marketplace add mschedrin/revmux</b>
 <b>claude plugin install revmux@revmux</b>
 
 <span class="c-dim"># or for codex cli</span>
-codex plugin marketplace add umputun/revmux
-codex plugin add revmux@revmux</pre>
+codex plugin marketplace add mschedrin/revmux
+codex plugin add revmux@revmux</code></pre>
               <p class="small">
                 <a href="/docs#install">Full install notes</a>, including building from a clone and how
                 authentication is passed to the model CLIs. <a href="#skills">What the skill does</a> is the
@@ -943,8 +951,8 @@ codex plugin add revmux@revmux</pre>
           <b>revmux</b>
           <a href="/docs">documentation</a>
           <a href="/reference">reference</a>
-          <a href="https://github.com/umputun/revmux">source</a>
-          <a href="https://github.com/umputun/revmux/releases">releases</a>
+          <a href="https://github.com/mschedrin/revmux">source</a>
+          <a href="https://github.com/mschedrin/revmux/releases">releases</a>
         </div>
         <div class="set">
           <b>read next</b>

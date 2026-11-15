@@ -261,6 +261,40 @@ of what the model emitted is worse off than one with no data, because it cannot 
 
 Tee before parse, not after — a stream that fails to parse is exactly the one worth having on disk.
 
+### OpenCode V2 observations
+
+Measured with OpenCode v2.3.0 on November 15, 2026.
+The clean capture is `app/executor/testdata/opencode-v2-clean.jsonl`, from
+`openai/gpt-6-astra#high` reading a two-line `scope.md` in an isolated directory.
+Its stderr was empty; the fixture contains no local paths or credentials.
+
+- `--model provider/model#variant` selects reasoning. There is no `--variant` flag.
+- `run --format json --auto --archived --standalone` accepts the prompt on stdin.
+- A read-tool round emits `step_start`, `text`, `tool_use`, and `step_finish`, then a new
+  message with `step_start`, final `text`, and `step_finish` with reason `stop`.
+- Text records have `part.id` and `part.messageID`; tool records use `part.partID` and
+  contain `part.state.input`, `output`, and `status`.
+- Usage arrives on `step_finish`. Input, output, reasoning, cache-read, and cache-write
+  counts are separate fields. No resolved model appeared in the captured stream.
+- An invalid variant exits 1 with `error: {"type":"provider.no-route","message":"Variant unavailable ..."}`.
+  An unavailable model uses the same object shape. Do not decode `error` as a string.
+- An unknown CLI flag prints help and a diagnostic, then exits 1. Preserve stderr diagnostics.
+- The private `serve --stdio --port 0` process has its own process group.
+  The client owns its stdio connection; after SIGTERM both the client and that server exited.
+  Check descendant PIDs as well as the client group when verifying this contract.
+  A SIGKILL probe registered kernel exit events before the kill: the client exited in 0.002 seconds
+  and the private server in 0.355 seconds. An immediate process snapshot can see the server during teardown.
+- With `--thinking`, a high-reasoning run emitted 19 reasoning records over 155 seconds.
+  The largest gap between captured events was 20.171 seconds; stderr was empty.
+  Enable `--thinking` for genuine model-output liveness, not to set reasoning effort.
+  Reasoning summaries never become final-answer text.
+  Other models can remain silent longer: use the existing `--idle-timeout` setting when needed.
+  Keep the hard timeout enabled; do not generate watchdog heartbeats.
+- Token totals include input, output, reasoning, and both cache counts, once per completed step.
+- Treat an `error` event as terminal even if the process later exits zero.
+  Require the last new step to finish with `stop`; later unfinished work invalidates an earlier answer.
+  This strict completion rule prevents an incomplete review from returning earlier commentary as findings.
+
 ### Codex differences
 
 Codex is a peer executor, not a special case in the pipeline — but the executor itself is genuinely different.

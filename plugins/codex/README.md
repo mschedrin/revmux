@@ -13,11 +13,11 @@ conventions.
 
 ## Requirements
 
-- `revmux` — `brew install umputun/apps/revmux` on macOS, a binary from the releases page, or
-  `go install github.com/umputun/revmux/app/revmux@latest`
+- `revmux` — build `mschedrin/revmux` branch `feat/opencode-v2` with `make install`
 - `claude` — every lens agent and both model stages run on it by default
 - `codex` — needed by any profile, roster entry or stage naming it in a `model:`, which every shipped
-  profile except `claude-only` does. `preflight.sh <profile>` answers it for the profile that will run
+  mixed profile does. `preflight.sh <profile>` answers it for the profile that will run
+- `opencode` — needed by `opencode-only` and custom OpenCode selections
 - `jq` — optional. `preflight.sh` and `task-state.sh` use it when present and fall back without it
 - `python3` — for `analyze-corpus.py` only, which self mode runs. Standard library alone, no packages
 - a supported terminal, for overlay mode only: agterm, tmux, Zellij, herdr, kitty, wezterm, cmux,
@@ -28,7 +28,7 @@ conventions.
 Add the marketplace and install the plugin:
 
 ```bash
-codex plugin marketplace add umputun/revmux
+codex plugin marketplace add mschedrin/revmux
 codex plugin add revmux@revmux
 ```
 
@@ -72,3 +72,4 @@ This integration is kept separate from other harnesses on purpose:
 
 - Claude Code integration lives in `.claude-plugin/`
 - Codex integration lives here in `plugins/codex/`
+- OpenCode TUI and Mini integration lives in `.opencode/skills/revmux/`

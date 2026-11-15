@@ -26,19 +26,24 @@ revmux runs a review and returns findings, and does nothing else. It performs no
 
 - [Documentation](https://revmux.com/docs): the full user guide covering install, task rounds, the three stages, profiles, lenses, configuration, the report, the run archive, the terminal UI and every subcommand
 - [Reference](https://revmux.com/reference): every flag, config key, front-matter key, lens, prompt variable, JSON field, verdict and exit code
-- [README](https://github.com/umputun/revmux/blob/master/README.md): the project synopsis, with install and a quick start
+- [README](https://github.com/mschedrin/revmux/blob/feat/opencode-v2/README.md): fork installation and OpenCode usage
 
 ## Install
 
-- Homebrew on macOS: `brew install umputun/apps/revmux`
-- [Releases](https://github.com/umputun/revmux/releases): prebuilt binaries for macOS and Linux on amd64 and arm64, plus `.deb` and `.rpm` packages
-- With a Go toolchain: `go install github.com/umputun/revmux/app/revmux@latest`
+- Fork base: upstream v0.2.7, SHA 3260c28ca3d202783a16d7ff4925a069119c428e; OpenCode tested at v2.3.0.
+- Clone: `git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git`
+- Build with Go 1.26 or newer. The upstream Homebrew package does not contain this port.
 - From a clone: `make build` produces `.bin/revmux`, `make install` symlinks it into `/usr/local/bin`
 - The model CLIs the chosen profile names must be installed and authenticated; `preflight.sh` in the shipped skill checks any invocation
+- `opencode-only` uses four OpenCode reviewers and both stages with the configured default model.
+- Native selection: `opencode/provider/model#variant`; each reviewer and stage can select a different model.
+- Copy `.opencode/skills/revmux/` to `~/.config/opencode/skills/revmux/` for full TUI and Mini callers.
+- OpenCode runs use JSON output, archived sessions and private servers. `#variant` selects reasoning;
+  `--thinking` supplies activity. Increase the existing idle timeout for models with long silent intervals.
 
 ## Optional
 
 - [Home page](https://revmux.com): what it does, the pipeline, the archive and the shipped profiles
-- [Source](https://github.com/umputun/revmux): MIT licensed
-- [Issues](https://github.com/umputun/revmux/issues): bug reports
+- [Source](https://github.com/mschedrin/revmux): MIT licensed
+- [Issues](https://github.com/mschedrin/revmux/issues): fork bug reports
 - [agterm](https://agterm.com): the terminal whose overlay the shipped launcher uses to show a live review

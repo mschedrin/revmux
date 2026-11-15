@@ -197,13 +197,14 @@ func (p *proc) readLines(ctx context.Context, r io.Reader, handler func(string))
 
 // childEnv drops the variables that break or misroute a child model CLI. CLAUDECODE always goes:
 // revmux normally runs inside an AI coding session and the child refuses to start as a nested one.
+// OpenCode keeps provider API keys because its configured providers can require them.
 func (p *proc) childEnv() []string {
 	src := os.Environ()
 	out := make([]string, 0, len(src))
 	for _, kv := range src {
 		switch name, _, _ := strings.Cut(kv, "="); {
 		case name == "CLAUDECODE":
-		case name == "ANTHROPIC_API_KEY" && !p.opts.PreserveAPIKey:
+		case name == "ANTHROPIC_API_KEY" && p.bin != "opencode" && !p.opts.PreserveAPIKey:
 		default:
 			out = append(out, kv)
 		}

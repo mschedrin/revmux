@@ -377,12 +377,27 @@ func (o runOpts) runnerFactory(rc reviewContext) func(pipeline.RunnerSpec) pipel
 	}
 	runner, eo := executor.NewRunner(), o.opts.executorOpts(rc, o.clock)
 	claude, codex := executor.NewClaude(runner, eo), executor.NewCodex(runner, eo)
+	opencode := executor.NewOpenCode(runner, eo)
 	return func(spec pipeline.RunnerSpec) pipeline.Runner {
-		if spec.Executor == executorCodex {
+		switch spec.Executor {
+		case "claude":
+			return claude
+		case executorCodex:
 			return codex
+		case "opencode":
+			return opencode
+		default:
+			return invalidRunner{executor: spec.Executor}
 		}
-		return claude
 	}
+}
+
+type invalidRunner struct {
+	executor string
+}
+
+func (r invalidRunner) Run(context.Context, executor.Request, executor.EventSink) (executor.Result, error) {
+	return executor.Result{}, fmt.Errorf("unknown executor %q", r.executor)
 }
 
 // write puts the report on stdout, as JSON unless a human asked for the rendered form. JSON is the

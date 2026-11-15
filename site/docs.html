@@ -58,7 +58,7 @@
           <a href="/">home</a>
           <a class="on" href="/docs">docs</a>
           <a href="/reference">reference</a>
-          <a class="ext" href="https://github.com/umputun/revmux">github</a>
+          <a class="ext" href="https://github.com/mschedrin/revmux">github</a>
         </nav>
         <details class="nav-mobile">
           <summary aria-label="menu">
@@ -70,7 +70,7 @@
             <a href="/">home</a>
             <a href="/docs">docs</a>
             <a href="/reference">reference</a>
-            <a href="https://github.com/umputun/revmux">github</a>
+            <a href="https://github.com/mschedrin/revmux">github</a>
           </nav>
         </details>
       </div>
@@ -171,30 +171,12 @@
         </div>
 
         <h2 id="install">Install <a class="anchor" href="#install">#</a></h2>
-        <p>Homebrew, on macOS:</p>
-        <pre class="code">brew install umputun/apps/revmux</pre>
-        <p>
-          It is a cask, so <code>brew install --cask umputun/apps/revmux</code> is the explicit spelling of the
-          same thing, and <code>brew upgrade</code> picks up later releases.
-        </p>
-        <h3>Binaries and packages</h3>
-        <p>
-          Every <a href="https://github.com/umputun/revmux/releases">release</a> carries prebuilt binaries for
-          macOS and Linux on amd64 and arm64, as <code>.tar.gz</code> archives plus <code>.deb</code> and
-          <code>.rpm</code> packages. This is the Linux path, since Homebrew casks are macOS only.
-        </p>
-        <pre class="code">dpkg -i revmux_&lt;version&gt;_linux_amd64.deb
-rpm -i revmux_&lt;version&gt;_linux_amd64.rpm</pre>
-        <h3>From source</h3>
-        <p>With a Go toolchain:</p>
-        <pre class="code">go install github.com/umputun/revmux/app/revmux@latest</pre>
-        <p>
-          The <code>revmux</code> binary lands in <code>GOBIN</code> (defaults to <code>$(go env GOPATH)/bin</code>).
-          Or build from a clone instead:
-        </p>
-        <pre class="code">git clone https://github.com/umputun/revmux.git &amp;&amp; cd revmux
+        <p>This fork is based on upstream v0.2.7 and adds OpenCode V2 support, tested with v2.3.0.
+          Build with Go 1.26 or newer. The upstream Homebrew package does not contain this port.</p>
+        <pre class="code" tabindex="0" role="region" aria-label="Build the OpenCode fork"><code>git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git
+cd revmux
 make build        <span class="c-dim"># produces .bin/revmux</span>
-make install      <span class="c-dim"># and symlinks it to /usr/local/bin/revmux</span></pre>
+make install      <span class="c-dim"># and symlinks it to /usr/local/bin/revmux</span></code></pre>
         <p>
           <code>make install</code> links rather than copies, so a later <code>make build</code> is picked up
           without reinstalling. Override the location with <code>BINDIR</code> when
@@ -208,11 +190,11 @@ make install      <span class="c-dim"># and symlinks it to /usr/local/bin/revmux
           one, and both harnesses install from it:
         </p>
         <pre class="code"><span class="c-dim"># Claude Code</span>
-claude plugin marketplace add umputun/revmux
+claude plugin marketplace add mschedrin/revmux
 claude plugin install revmux@revmux
 
 <span class="c-dim"># Codex</span>
-codex plugin marketplace add umputun/revmux
+codex plugin marketplace add mschedrin/revmux
 codex plugin add revmux@revmux</pre>
         <p>
           Install through one marketplace only. If you previously copied or symlinked the Codex skill into
@@ -221,6 +203,9 @@ codex plugin add revmux@revmux</pre>
         </p>
 
         <h3>Model CLIs</h3>
+        <p>For OpenCode, copy the complete <code>.opencode/skills/revmux</code> directory from this clone
+          to <code>~/.config/opencode/skills/revmux</code>. Ask for a revmux review from the full TUI
+          or <code>opencode mini</code>. Both interfaces load the same caller skill.</p>
         <p>
           revmux drives the model CLIs as subprocesses, so whichever ones your profile names must already be
           installed and authenticated. Which those are is a property of the profile, not a fixed pair:
@@ -232,13 +217,14 @@ codex plugin add revmux@revmux</pre>
           </li>
           <li><code>claude-only</code>: claude alone</li>
           <li><code>codex-only</code>: codex alone</li>
+          <li><code>opencode-only</code>: opencode alone, using its configured default model</li>
         </ul>
         <p>
           <code>preflight.sh</code> in the shipped skill answers it for any profile and any invocation,
           <code>--lenses</code> included.
         </p>
         <p>
-          <code>ANTHROPIC_API_KEY</code> is stripped from the child environment by default so
+          For Claude and Codex, <code>ANTHROPIC_API_KEY</code> is stripped from the child environment by default so
           <code>claude</code> uses interactive subscription auth. Pass
           <code>--preserve-anthropic-api-key</code> if you authenticate by key. <code>CLAUDECODE</code> is
           always stripped, since a <code>claude</code> child refuses to start when it thinks it is a nested
@@ -519,7 +505,7 @@ Reviewing the token exchange path after the provider swap.</pre>
 ├── prompts/
 │   ├── profiles/
 │   │   ├── comprehensive.md  roster front matter + shared preamble + severity bar
-│   │   ├── focused.md  final.md  claude-only.md  codex-only.md
+│   │   ├── focused.md  final.md  claude-only.md  codex-only.md  opencode-only.md
 │   │   └── grill-me.md  expert.md  triage.md
 │   ├── synthesis.md
 │   └── verify.md
@@ -572,6 +558,18 @@ agents:
         </p>
 
         <h3>The model string</h3>
+        <p>OpenCode uses <code>opencode/provider/model#variant</code>, or bare <code>opencode</code>
+          for its configured default. Provider/model names are placeholders; use the current catalog.
+          Colons and nested model paths are preserved. Native variants stay in the model field;
+          legacy effort is never inherited. An explicit model replaces the full reference.
+          Each reviewer and stage can select a different model and variant.</p>
+        <p>The executor uses <code>run --format json --auto --archived --standalone --thinking</code>.
+          The private server exits after its client closes. <code>#variant</code> selects reasoning;
+          <code>--thinking</code> exposes activity. Increase <code>--idle-timeout</code> for models
+          with long silent intervals. OpenCode retains provider credentials, including
+          <code>ANTHROPIC_API_KEY</code>. Review-only behavior is prompt-based, not a sandbox.
+          Mini is a caller interface, not a reviewer executor.</p>
+        <p>The following legacy grammar applies to Claude and Codex:</p>
         <p>
           One <code>model</code> string selects the binary, the model and the effort together. The binary leads
           and is mandatory, either <code>claude</code> or <code>codex</code>, so a value validates itself and
@@ -639,6 +637,10 @@ codex:high               codex's default model at high effort</pre>
                 <td class="prose">
                   the same four lens splits on codex, and synthesis and verify with them, no claude anywhere
                 </td>
+              </tr>
+              <tr>
+                <td>opencode-only</td>
+                <td class="prose">four OpenCode lens groups and both stages, using the configured default model</td>
               </tr>
               <tr>
                 <td>grill-me</td>
@@ -1239,7 +1241,7 @@ receives, including what counts as critical, major and minor here.</pre>
         <h2 id="skills">Agent skills <a class="anchor" href="#skills">#</a></h2>
         <p>
           revmux is built to be driven by a caller model, and the repository ships that caller as a skill for
-          two harnesses. Ask for a review in words and the skill does the rest: it resolves what is being
+          three harnesses. Ask for a review in words and the skill does the rest: it resolves what is being
           reviewed, runs the git commands, writes the round's <code>input/</code>, launches revmux, reads the
           JSON back, and opens a new round on the same task after fixes.
         </p>
@@ -1253,7 +1255,7 @@ receives, including what counts as critical, major and minor here.</pre>
                 <td>Claude Code</td>
                 <td><code>.claude-plugin/skills/revmux/</code></td>
                 <td class="prose">
-                  <code>claude plugin marketplace add umputun/revmux</code> then
+                  <code>claude plugin marketplace add mschedrin/revmux</code> then
                   <code>claude plugin install revmux@revmux</code>
                 </td>
               </tr>
@@ -1261,7 +1263,7 @@ receives, including what counts as critical, major and minor here.</pre>
                 <td>Codex CLI</td>
                 <td><code>plugins/codex/skills/revmux/</code></td>
                 <td class="prose">
-                  <code>codex plugin marketplace add umputun/revmux</code> then
+                  <code>codex plugin marketplace add mschedrin/revmux</code> then
                   <code>codex plugin add revmux@revmux</code>
                 </td>
               </tr>
@@ -1277,7 +1279,9 @@ receives, including what counts as critical, major and minor here.</pre>
           <code>triage</code> panel over them and puts the maintainer's six answers to him with the arguments
           behind each.
         </p>
-        <p>Both trees carry the same reference material and the same scripts:</p>
+        <p>The OpenCode skill lives at <code>.opencode/skills/revmux/</code>. Copy the complete directory
+          to <code>~/.config/opencode/skills/revmux/</code> for use from the full TUI or Mini.</p>
+        <p>All three trees carry the same reference material and scripts:</p>
         <dl class="deflist">
           <dt>preflight.sh</dt>
           <dd>
@@ -1319,7 +1323,7 @@ make fmt      <span class="c-dim"># gofmt and goimports</span></pre>
           No test spawns a real model. The executors are driven through a mocked <code>CommandRunner</code>
           against recorded CLI fixtures, the pipeline through mocked runners, and the TUI through synthetic
           bubbletea messages. revmux is MIT licensed;
-          <a href="https://github.com/umputun/revmux">the source is on GitHub</a>.
+          <a href="https://github.com/mschedrin/revmux">the fork source is on GitHub</a>.
         </p>
       </main>
     </div>
@@ -1330,8 +1334,8 @@ make fmt      <span class="c-dim"># gofmt and goimports</span></pre>
           <b>revmux</b>
           <a href="/">home</a>
           <a href="/reference">reference</a>
-          <a href="https://github.com/umputun/revmux">source</a>
-          <a href="https://github.com/umputun/revmux/releases">releases</a>
+          <a href="https://github.com/mschedrin/revmux">source</a>
+          <a href="https://github.com/mschedrin/revmux/releases">releases</a>
         </div>
         <div class="set">
           <b>license</b>

@@ -31,16 +31,21 @@ while [ $# -gt 0 ]; do
     shift
 done
 claude='{name: "base", runner: {executor: "claude"}, roster: [{executor: "claude"}], stages: [{executor: "claude"}]}'
+native='{name: "opencode-only", runner: {executor: "opencode"}, roster: [{executor: "opencode"}], stages: [{executor: "opencode"}]}'
+mixed='{name: "mixed", runner: {executor: "opencode"}, roster: [{executor: "codex"}], stages: [{executor: "opencode"}]}'
 local='{name: "local", runner: {executor: "claude"}, roster: [{executor: "codex"}], stages: [{executor: "claude"}]}'
 if [ -n "$dir" ]; then
     jq -n "{knobs: [{name: \"profile\", value: \"local\"}], profiles: [$claude, $local]}"
     exit 0
 fi
-jq -n "{knobs: [{name: \"profile\", value: \"base\"}], profiles: [$claude]}"
+jq -n "{knobs: [{name: \"profile\", value: \"base\"}], profiles: [$claude, $native, $mixed]}"
 FAKE
 printf '#!/bin/sh\nexit 0\n' > "$work/models/claude"
 printf '#!/bin/sh\nexit 0\n' > "$work/models/codex"
-chmod +x "$work/bin/revmux" "$work/models/claude" "$work/models/codex"
+printf '#!/bin/sh\nexit 0\n' > "$work/models/opencode"
+chmod +x "$work/bin/revmux" "$work/models/claude" "$work/models/codex" "$work/models/opencode"
+mkdir -p "$work/opencode-only"
+ln -s "$work/models/opencode" "$work/opencode-only/opencode"
 mkdir -p "$work/claude-only"
 ln -s "$work/models/claude" "$work/claude-only/claude"
 
@@ -106,6 +111,25 @@ run "$work/claude-only"
 expect_argv "bare default" config
 expect_line "bare default" "$out" "profile: base (resolved default)"
 expect_line "bare default" "$out" "ok: true"
+
+run "$work/opencode-only" opencode-only
+[ "$code" -eq 0 ] || fail "OpenCode-only profile: exit $code, out: $out"
+expect_line "OpenCode-only profile" "$out" "opencode: $work/opencode-only/opencode"
+
+run "$work/claude-only" opencode-only
+[ "$code" -eq 1 ] || fail "missing OpenCode: exit $code"
+expect_line "missing OpenCode" "$out" "opencode: MISSING - required by this invocation"
+
+run "$work/models" mixed
+[ "$code" -eq 0 ] || fail "mixed stages: exit $code"
+expect_line "mixed stages" "$out" "codex: $work/models/codex"
+expect_line "mixed stages" "$out" "opencode: $work/models/opencode"
+
+run "$work/opencode-only" mixed
+[ "$code" -eq 1 ] || fail "mixed roster needs Codex: exit $code"
+run "$work/opencode-only" mixed --lenses
+[ "$code" -eq 0 ] || fail "lenses replace Codex roster: exit $code, out: $out"
+expect_line "lenses base runner" "$out" "opencode: $work/opencode-only/opencode"
 
 usage_cases=(
     "option without a value|--config-dir"

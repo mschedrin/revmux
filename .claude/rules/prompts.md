@@ -13,7 +13,7 @@ and get the same review, and change a timeout without touching a prompt.
 
 ```
 prompts/profiles/comprehensive.md   focused.md   final.md   claude-only.md   codex-only.md   grill-me.md
-prompts/profiles/expert.md
+prompts/profiles/expert.md   opencode-only.md
 prompts/profiles/triage.md
 prompts/synthesis.md   prompts/verify.md
 lenses/bugs.md  impl.md  architecture.md  quality.md  docs.md  tests.md  comments.md  adversarial.md
@@ -52,7 +52,11 @@ The top-level `model` is the review's runner; a roster entry or a stage naming i
 
 ### One `model` string is the whole runner selection
 
-`<binary>[/<model>][:<effort>]`, parsed by `app/prompt/runner.go` and nowhere else.
+Claude/Codex use `<binary>[/<model>][:<effort>]`, parsed by `app/prompt/runner.go` and nowhere else.
+OpenCode uses `opencode[/<provider>/<model>[#<variant>]]`. Its model preserves colons and extra slashes.
+Its effort stays empty; a native variant belongs to the complete model reference.
+Bare OpenCode inherits only a lower-priority OpenCode model, otherwise it uses its configured default.
+An explicit OpenCode model replaces the complete reference. It never inherits legacy effort.
 There is no `executor:` key and no `effort:` key in any prompt file.
 
 ```
@@ -77,7 +81,7 @@ claude, and under `codex-only` built a claude agent asked for `gpt-5.6-sol`.
 `Runner.or` therefore refuses to inherit a model across binaries, and carries only the effort, which
 belongs to neither model.
 
-Parsing splits on the **first** `/`, so a model whose own name carries one survives, and on the **last**
+Legacy parsing splits on the **first** `/`, so a model whose own name carries one survives, and on the **last**
 `:`, whose suffix must be a real effort rather than being folded into the model name — `:hgih` is a load
 error, not a typo that silently becomes part of a model nobody checks.
 

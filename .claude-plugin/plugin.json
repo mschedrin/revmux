@@ -6,7 +6,7 @@
     "name": "umputun",
     "email": "umputun@gmail.com"
   },
-  "repository": "https://github.com/umputun/revmux",
+  "repository": "https://github.com/mschedrin/revmux",
   "license": "MIT",
   "keywords": [
     "code-review",

@@ -43,6 +43,8 @@ test: test-scripts
 test-scripts:
 	.github/scripts/test-task-state.sh
 	.github/scripts/test-preflight.sh
+	.github/scripts/test-preflight.sh plugins/codex/skills/revmux/scripts/preflight.sh
+	.github/scripts/test-preflight.sh .opencode/skills/revmux/scripts/preflight.sh
 
 lint: lint-go lint-scripts
 
@@ -53,12 +55,12 @@ lint-go:
 # checked by nothing local. The command is copied from .github/workflows/ci.yml verbatim: that job
 # pipes shellcheck through xargs, so ANY output fails it, info-level findings included.
 # the helper check is not something shellcheck can express: a backend that hand-rolls its inner command
-# is valid shell, and both trees carry the copy, so the linter and check-plugins both pass it.
+# is valid shell, and all three trees carry the copy, so the linter and check-plugins both pass it.
 lint-scripts:
 	find . -name '*.sh' -not -path './.git/*' -not -path './vendor/*' -print0 | xargs -0 shellcheck
 	sh .github/scripts/check-sentinel-helpers.sh
 
-# the two skill trees ship to different harnesses and each must be self-contained once installed, so
+# the three skill trees ship to different harnesses and each must be self-contained once installed, so
 # plugins/codex/ is a hand-maintained copy rather than a link. What must not diverge is the content:
 # an edit to one tree's references/ or scripts/ that never reached the other is a skill that behaves
 # one way under claude and another under codex. The validator also pins the marketplace source, policy,
@@ -66,7 +68,10 @@ lint-scripts:
 check-plugins:
 	diff -r .claude-plugin/skills/revmux/references plugins/codex/skills/revmux/references
 	diff -r .claude-plugin/skills/revmux/scripts plugins/codex/skills/revmux/scripts
+	diff -r .claude-plugin/skills/revmux/references .opencode/skills/revmux/references
+	diff -r .claude-plugin/skills/revmux/scripts .opencode/skills/revmux/scripts
 	python3 .github/scripts/validate-codex-marketplace.py
+	python3 .github/scripts/validate-opencode-skill.py
 	@echo "plugin trees agree"
 
 fmt:

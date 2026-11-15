@@ -65,8 +65,8 @@ func TestDefaults_EveryProfileResolvesItsRoster(t *testing.T) {
 	set, err := Load(LoadOpts{})
 	require.NoError(t, err)
 	known := set.LensNames()
-	require.Len(t, set.ProfileNames(), 8,
-		"the shipped set is comprehensive, focused, final, claude-only, codex-only, grill-me, triage and expert")
+	require.Len(t, set.ProfileNames(), 9,
+		"the shipped set is comprehensive, focused, final, claude-only, codex-only, opencode-only, grill-me, triage and expert")
 
 	for _, name := range set.ProfileNames() {
 		p, err := set.Profile(name)
@@ -81,10 +81,14 @@ func TestDefaults_EveryProfileResolvesItsRoster(t *testing.T) {
 				name, spec.Name)
 			assert.NotContains(t, colors, spec.Color, "%s: %s and %s share a color", name, colors[spec.Color], spec.Name)
 			colors[spec.Color] = spec.Name
-			assert.NotEmpty(t, spec.Model, "%s/%s: a roster entry with no model runs on whatever the binary defaults to",
-				name, spec.Name)
-			assert.NotEmpty(t, spec.Effort, "%s/%s: effort must resolve from the profile when the entry omits it",
-				name, spec.Name)
+			if name == "opencode-only" {
+				assert.Equal(t, "opencode", spec.Executor)
+				assert.Empty(t, spec.Model, "use OpenCode's configured default")
+				assert.Empty(t, spec.Effort)
+			} else {
+				assert.NotEmpty(t, spec.Model, "%s/%s: a roster entry must select a model", name, spec.Name)
+				assert.NotEmpty(t, spec.Effort, "%s/%s: effort must resolve from the profile", name, spec.Name)
+			}
 			for _, l := range spec.Lenses {
 				assert.Contains(t, known, l, "%s/%s: unknown lens %s", name, spec.Name, l)
 			}
@@ -103,8 +107,13 @@ func TestDefaults_EveryProfileResolvesEveryStage(t *testing.T) {
 			st, err := p.Stage(set, stage)
 			require.NoError(t, err, "%s/%s", name, stage)
 			assert.NotEmpty(t, st.Executor, "%s/%s", name, stage)
-			assert.NotEmpty(t, st.Model, "%s/%s: a stage with no model runs on whatever the binary defaults to",
-				name, stage)
+			if name == "opencode-only" {
+				assert.Equal(t, "opencode", st.Executor)
+				assert.Empty(t, st.Model)
+				assert.Empty(t, st.Effort)
+			} else {
+				assert.NotEmpty(t, st.Model, "%s/%s: a stage must select a model", name, stage)
+			}
 			assert.NotEmpty(t, st.Body, "%s/%s: the body is the stage file's whether or not the profile overrides",
 				name, stage)
 		}
@@ -149,6 +158,19 @@ func TestDefaults_CodexOnlyRunsEveryStageOnCodex(t *testing.T) {
 		require.NoError(t, stErr)
 		assert.Equal(t, "claude", st.Executor, "%s: the mirror profile names no override and keeps the file's own", stage)
 	}
+}
+
+func TestDefaults_OpenCodeLensOverride(t *testing.T) {
+	set, err := Load(LoadOpts{})
+	require.NoError(t, err)
+	p, err := set.Profile("opencode-only")
+	require.NoError(t, err)
+	specs, err := p.Roster([]string{"bugs"}, set.LensNames())
+	require.NoError(t, err)
+	require.Len(t, specs, 1)
+	assert.Equal(t, "opencode", specs[0].Executor)
+	assert.Empty(t, specs[0].Model)
+	assert.Empty(t, specs[0].Effort)
 }
 
 func TestDefaults_ComprehensiveRoster(t *testing.T) {

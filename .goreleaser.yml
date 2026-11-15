@@ -30,34 +30,13 @@ nfpms:
     package_name: revmux
     ids:
       - revmux
-    vendor: umputun
-    homepage: https://github.com/umputun/revmux
-    maintainer: umputun
-    description: Supervised multi-agent code review with parallel claude and codex subprocesses
+    vendor: mschedrin
+    homepage: https://github.com/mschedrin/revmux
+    maintainer: mschedrin
+    description: Supervised multi-agent code review with Claude, Codex and OpenCode
     license: MIT
     formats:
       - deb
       - rpm
 
-homebrew_casks:
-  - name: revmux
-    ids:
-      - revmux
-    repository:
-      owner: umputun
-      name: homebrew-apps
-    homepage: https://github.com/umputun/revmux
-    description: Supervised multi-agent code review with parallel claude and codex subprocesses
-    license: MIT
-    binaries:
-      - revmux
-    # the release binaries are unsigned, so macOS quarantines what brew downloads.
-    # this is a custom_block rather than hooks.post.install because goreleaser wraps that hook
-    # in a `postflight do` stanza, which homebrew deprecated in favour of postflight_steps
-    custom_block: |
-      postflight_steps do
-        on_macos do
-          run "/usr/bin/xattr",
-              args: ["-dr", "com.apple.quarantine", "{{ `{{staged_path}}` }}/revmux"]
-        end
-      end
+# This fork has no Homebrew tap. Release artifacts stay in the current repository.

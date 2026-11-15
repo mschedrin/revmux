@@ -1,10 +1,14 @@
 # revmux
 
-[![build](https://github.com/umputun/revmux/actions/workflows/ci.yml/badge.svg)](https://github.com/umputun/revmux/actions/workflows/ci.yml) [![Coverage Status](https://coveralls.io/repos/github/umputun/revmux/badge.svg?branch=master)](https://coveralls.io/github/umputun/revmux?branch=master)
+[![build](https://github.com/mschedrin/revmux/actions/workflows/ci.yml/badge.svg?branch=feat%2Fopencode-v2)](https://github.com/mschedrin/revmux/actions/workflows/ci.yml)
 
-**[revmux.com](https://revmux.com)** · [Documentation](https://revmux.com/docs) · [Reference](https://revmux.com/reference) · [Releases](https://github.com/umputun/revmux/releases)
+**[Fork source](https://github.com/mschedrin/revmux)** · [Documentation](site/docs.html) · [Reference](site/reference.html) · [Releases](https://github.com/mschedrin/revmux/releases)
 
-revmux runs a structured multi-agent review. It spawns and supervises `claude --print` and `codex exec`
+This fork adds OpenCode V2 support to upstream **v0.2.7**
+(`3260c28ca3d202783a16d7ff4925a069119c428e`). It does not include later upstream changes.
+The maintained branch is `feat/opencode-v2`. OpenCode integration was tested with **v2.3.0**.
+
+revmux runs a structured multi-agent review. It supervises Claude, Codex and `opencode run`
 subprocesses, then returns findings on stdout as JSON or markdown.
 
 **It is normally launched by a coding agent rather than typed by you.** The [shipped skill](#agent-skills)
@@ -21,8 +25,8 @@ revmux runs a review and returns findings, and does nothing else. It performs no
 operations, no PR fetching and no source modification. All review context is written to disk by the caller
 and passed in as a task round, named with `--task` and `--run`.
 
-Full documentation is at **[revmux.com/docs](https://revmux.com/docs)**, and every flag, key and field is in
-the **[reference](https://revmux.com/reference)**.
+Fork documentation is in **[site/docs.html](site/docs.html)**, with flags in the
+**[reference](site/reference.html)**. The published revmux.com site describes upstream.
 
 ![revmux running four agents, shown as a terminal overlay above the session that launched it](site/assets/screenshot-run.webp)
 
@@ -60,25 +64,12 @@ instruction to judge them independently rather than confirm them.
 
 ## Install
 
-Homebrew, on macOS:
+Build this fork with Go 1.26 or newer. The upstream Homebrew package does not contain this port.
+No fork Homebrew tap is configured.
 
 ```
-brew install umputun/apps/revmux
-```
-
-Prebuilt binaries for macOS and Linux, on amd64 and arm64, are attached to every
-[release](https://github.com/umputun/revmux/releases), along with `.deb` and `.rpm` packages:
-
-```
-dpkg -i revmux_<version>_linux_amd64.deb
-rpm -i revmux_<version>_linux_amd64.rpm
-```
-
-With a Go toolchain, `go install github.com/umputun/revmux/app/revmux@latest` builds it from source into
-`GOBIN` (defaults to `$(go env GOPATH)/bin`). Or build from a clone:
-
-```
-git clone https://github.com/umputun/revmux.git && cd revmux
+git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git
+cd revmux
 make build        # produces .bin/revmux
 make install      # and symlinks it to /usr/local/bin/revmux
 ```
@@ -91,12 +82,16 @@ coding agent drives it:
 
 ```sh
 # Claude Code
-claude plugin marketplace add umputun/revmux
+claude plugin marketplace add mschedrin/revmux
 claude plugin install revmux@revmux
 
 # Codex
-codex plugin marketplace add umputun/revmux
+codex plugin marketplace add mschedrin/revmux
 codex plugin add revmux@revmux
+
+# OpenCode: from this clone, copy the complete skill directory
+mkdir -p ~/.config/opencode/skills
+cp -R .opencode/skills/revmux ~/.config/opencode/skills/
 ```
 
 Install the skill through one marketplace only. If you previously copied or symlinked the Codex skill into
@@ -105,15 +100,47 @@ revmux this branch, revmux pr 123, re-review after fixes. See [Agent skills](#ag
 
 revmux drives the model CLIs as subprocesses, so whichever ones your profile names must already be installed
 and authenticated: both for `comprehensive`, `focused`, `final`, `grill-me`, `triage` and `expert`, claude
-alone for `claude-only`, codex alone for `codex-only`. `preflight.sh` in the shipped skill answers it for any
+alone for `claude-only`, codex alone for `codex-only`, opencode alone for `opencode-only`. `preflight.sh` in the shipped skill answers it for any
 profile and any invocation.
 
-`ANTHROPIC_API_KEY` is stripped from the child environment by default so `claude` uses interactive
+For Claude and Codex, `ANTHROPIC_API_KEY` is stripped from the child environment by default so `claude` uses interactive
 subscription auth; pass `--preserve-anthropic-api-key` if you authenticate by key.
 `claude` also runs with `--setting-sources project`, so your user `settings.json` is not loaded, and an
 `apiKeyHelper` set there never reaches the agents. Put the helper in the reviewed repo's
 `.claude/settings.json`, or put a `claude` wrapper first on PATH that runs the real binary, by absolute path,
 with `--settings <file>` added.
+
+### OpenCode models, reasoning and Mini
+
+Ask OpenCode to “review this branch with revmux, OpenCode only” from the full TUI or `opencode mini`.
+The project skill is discovered in this clone; the global copy makes it available in other projects.
+OpenCode loads skills with the same tools in both interfaces. Mini is a caller, not a reviewer executor.
+
+`opencode-only` runs four lens groups and both model stages on your configured OpenCode default.
+Custom profiles can select models independently. These are placeholder IDs; use your current catalog:
+
+```yaml
+model: opencode/provider/finder#high
+agents:
+  - {name: bugs, lenses: [bugs], color: cyan}
+  - {name: peer, lenses: [impl], model: "opencode/other/model#deep", color: green}
+stages:
+  synthesis: opencode/provider/synthesizer#high
+  verify: opencode/local/model:tag#custom
+```
+
+The grammar is `opencode/<provider>/<model>[#<variant>]`. It preserves colon tags and nested model
+paths. `#variant` selects reasoning; OpenCode does not use revmux's Claude/Codex `:effort` suffix.
+Bare `opencode` inherits an OpenCode model from a lower-priority layer, or uses the configured default.
+An explicit model replaces the full reference, including its variant. Legacy effort is never inherited.
+
+Review subprocesses use `run --format json --auto --archived --standalone --thinking`.
+Prompts go to stdin. Each attempt has a fresh archived session and private server; cancellation
+closes that server after the client exits. `--thinking` supplies reasoning activity, not effort selection.
+Models with longer silent intervals may need `--idle-timeout 5m`; retain a hard timeout.
+OpenCode keeps its configured credentials, including `ANTHROPIC_API_KEY`.
+The read-only review rule is a prompt instruction, not a sandbox.
+The V2 CLI stream does not report the resolved model, so `actual_model` stays empty.
 
 ## Quick start
 
@@ -269,6 +296,7 @@ codex mix inside one review.
 | `final` | `bugs+impl` plus the codex peer, nothing below major reported |
 | `claude-only` | the same four lens splits on claude, for a machine with no codex |
 | `codex-only` | the same splits on codex, and synthesis and verify with them |
+| `opencode-only` | four OpenCode lens groups, with OpenCode synthesis and verification |
 | `grill-me` | two lens splits, each run once on claude and once on codex |
 | `expert` | two agents at xhigh, each carrying all eight code lenses |
 | `triage` | a four-way panel over a filed item rather than a diff |
@@ -344,17 +372,18 @@ when the tty cannot be opened, the same events render as timestamped lines on st
 
 ## Agent skills
 
-revmux is built to be driven by a caller model, and this repository ships that caller as a skill for two
+revmux is built to be driven by a caller model, and this repository ships that caller as a skill for three
 harnesses. Ask for a review in words and the skill does the rest: it resolves what is being reviewed, runs the
 git commands, writes the round's `input/`, launches revmux, reads the JSON back, and opens a new round on the
 same task after fixes.
 
 | harness | location | install |
 |---|---|---|
-| Claude Code | `.claude-plugin/skills/revmux/` | `claude plugin marketplace add umputun/revmux` then `claude plugin install revmux@revmux` |
-| Codex CLI | `plugins/codex/skills/revmux/` | `codex plugin marketplace add umputun/revmux` then `codex plugin add revmux@revmux` |
+| Claude Code | `.claude-plugin/skills/revmux/` | `claude plugin marketplace add mschedrin/revmux` then `claude plugin install revmux@revmux` |
+| Codex CLI | `plugins/codex/skills/revmux/` | `codex plugin marketplace add mschedrin/revmux` then `codex plugin add revmux@revmux` |
+| OpenCode TUI / Mini | `.opencode/skills/revmux/` | Copy the complete directory to `~/.config/opencode/skills/revmux/` |
 
-Both carry the same reference material and the same scripts: `preflight.sh` checks the binaries an invocation
+All three carry the same reference material and scripts: `preflight.sh` checks the binaries an invocation
 needs, `task-state.sh` reports what a task holds, `launch-revmux.sh` runs revmux with its TUI in a terminal
 overlay, and `analyze-corpus.py` reads the archive back as numbers about the review itself.
 
@@ -374,3 +403,8 @@ fixtures, the pipeline through mocked runners, and the TUI through synthetic bub
 ## License
 
 MIT
+
+Upstream revmux is by umputun. The OpenCode adapter was adapted from
+[hackmajoris/revmux PR #1](https://github.com/hackmajoris/revmux/pull/1),
+commit `319c81ac15e83da999924c7f14f8637f74bd62f6`, and updated for OpenCode V2.
+The upstream license is retained.

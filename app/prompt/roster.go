@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	executorClaude = "claude"
+	executorClaude   = "claude"
+	executorOpenCode = "opencode"
 
 	// overrideAgent is the name the --lenses override's single agent carries. It reaches
 	// Finding.sources and becomes agents/<name>.jsonl, so it can never be empty.
@@ -26,7 +27,7 @@ const (
 
 // the two accepted vocabularies, checked by validate and reported verbatim by `revmux config`.
 var (
-	executors = []string{executorClaude, "codex"}
+	executors = []string{executorClaude, "codex", executorOpenCode}
 	efforts   = []string{"low", "medium", "high", "xhigh", "max"}
 )
 

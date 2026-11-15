@@ -435,6 +435,49 @@ func TestProfile_Roster_DoesNotAliasTheProfile(t *testing.T) {
 	assert.Equal(t, "6", again[0].Color)
 }
 
+func TestProfile_OpenCodeSelection(t *testing.T) {
+	for _, override := range []string{"opencode", "opencode/provider/other"} {
+		t.Run(override, func(t *testing.T) {
+			project := writeTree(t, t.TempDir(), map[string]string{
+				"prompts/profiles/native.md": `---
+model: claude/opus:high
+agents:
+  - {name: default, lenses: [bugs], model: opencode}
+  - {name: native, lenses: [bugs], model: "opencode/local/model:tag#deep"}
+stages:
+  synthesis: ` + override + `
+  verify: codex/peer
+---
+review`,
+				"prompts/synthesis.md": "---\nmodel: opencode/provider/synth#deep\n---\nsynthesize",
+			})
+			set, err := Load(LoadOpts{ProjectDir: project})
+			require.NoError(t, err)
+			p, err := set.Profile("native")
+			require.NoError(t, err)
+			roster, err := p.Roster(nil, set.LensNames())
+			require.NoError(t, err)
+			assert.Empty(t, roster[0].Model)
+			assert.Empty(t, roster[0].Effort)
+			assert.Equal(t, "local/model:tag#deep", roster[1].Model)
+			assert.Empty(t, roster[1].Effort)
+			stage, err := p.Stage(set, "synthesis")
+			require.NoError(t, err)
+			want := "provider/synth#deep"
+			if override != "opencode" {
+				want = "provider/other"
+			}
+			assert.Equal(t, want, stage.Model)
+			assert.Empty(t, stage.Effort)
+			verify, err := p.Stage(set, "verify")
+			require.NoError(t, err)
+			assert.Equal(t, "codex", verify.Executor)
+			assert.Equal(t, "peer", verify.Model)
+			assert.Equal(t, "high", verify.Effort, "legacy executor inheritance remains unchanged")
+		})
+	}
+}
+
 func TestStage_FrontMatter(t *testing.T) {
 	t.Run("parsed", func(t *testing.T) {
 		project := writeTree(t, t.TempDir(), map[string]string{
@@ -471,7 +514,7 @@ func TestStage_FrontMatter(t *testing.T) {
 
 func TestVocabularies(t *testing.T) {
 	assert.Equal(t, []string{"low", "medium", "high", "xhigh", "max"}, Efforts())
-	assert.Equal(t, []string{"claude", "codex"}, Executors())
+	assert.Equal(t, []string{"claude", "codex", "opencode"}, Executors())
 
 	Efforts()[0] = "mutated"
 	Executors()[0] = "mutated"
