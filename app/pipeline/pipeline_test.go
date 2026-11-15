@@ -27,6 +27,110 @@ import (
 	"github.com/umputun/revmux/app/task"
 )
 
+func TestArchivedPrompt_executors(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		want string
+	}{
+		{"claude", executor.ClaudeNarrationContract(finding.FinderSchema())},
+		{"codex", executor.CodexOutputContract(finding.FinderSchema())},
+		{"opencode", executor.OpenCodeOutputContract(finding.FinderSchema())},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			text, err := archivedPrompt(tt.name, "review", finding.FinderSchema())
+			require.NoError(t, err)
+			assert.Equal(t, "review"+tt.want, text)
+		})
+	}
+	for _, name := range []string{"", "unknown"} {
+		text, err := archivedPrompt(name, "review", finding.FinderSchema())
+		require.ErrorContains(t, err, "unknown executor")
+		assert.Empty(t, text)
+	}
+}
+
+func TestPipeline_OpenCodeStages(t *testing.T) {
+	for _, peer := range []struct {
+		model string
+		spec  RunnerSpec
+	}{
+		{"opencode/provider/peer#low", RunnerSpec{Executor: "opencode", Model: "provider/peer#low"}},
+		{"codex/peer:low", RunnerSpec{Executor: "codex", Model: "peer", Effort: "low"}},
+	} {
+		t.Run(peer.model, func(t *testing.T) {
+			profile := `---
+model: opencode/provider/finder#deep
+agents:
+  - {name: bugs, lenses: [bugs]}
+  - {name: impl, lenses: [impl], model: "` + peer.model + `"}
+stages:
+  synthesis: opencode/provider/synthesis#custom
+  verify: opencode/local/verifier:tag#low
+---
+review`
+			h, seen := artifactHarness(t, map[string]string{"prompts/profiles/testprof.md": profile})
+			inner := h.cfg.NewRunner
+			var mu sync.Mutex
+			var selected []RunnerSpec
+			h.cfg.NewRunner = func(spec RunnerSpec) Runner {
+				runner := inner(spec)
+				return &mocks.RunnerMock{RunFunc: func(ctx context.Context, req executor.Request, sink executor.EventSink) (executor.Result, error) {
+					mu.Lock()
+					selected = append(selected, spec)
+					mu.Unlock()
+					assert.Equal(t, spec.Model, req.Model)
+					assert.Equal(t, spec.Effort, req.Effort)
+					return runner.Run(ctx, req, sink)
+				}}
+			}
+			p := New(h.cfg)
+			drain(p)
+			report, err := p.Run(context.Background())
+			require.NoError(t, err)
+			require.Len(t, report.Findings, 4)
+			finder := RunnerSpec{Executor: "opencode", Model: "provider/finder#deep"}
+			synthesis := RunnerSpec{Executor: "opencode", Model: "provider/synthesis#custom"}
+			verify := RunnerSpec{Executor: "opencode", Model: "local/verifier:tag#low"}
+			for _, spec := range []RunnerSpec{finder, peer.spec, synthesis, verify} {
+				assert.Contains(t, selected, spec)
+			}
+			wantAgents := map[string]RunnerSpec{"bugs": finder, "impl": peer.spec}
+			require.Len(t, report.Sources.Agents, len(wantAgents))
+			assert.Equal(t, len(wantAgents), report.Sources.Expected)
+			assert.Equal(t, len(wantAgents), report.Sources.Reported)
+			assert.False(t, report.Sources.Degraded())
+			for _, stat := range report.Sources.Agents {
+				want, ok := wantAgents[stat.Name]
+				require.True(t, ok, "unexpected or duplicate source %q", stat.Name)
+				delete(wantAgents, stat.Name)
+				assert.Equal(t, want.Executor, stat.Executor)
+				assert.Equal(t, want.Model, stat.RequestedModel)
+				assert.Equal(t, want.Effort, stat.Effort)
+				if want.Executor == "opencode" {
+					assert.Empty(t, stat.ActualModel)
+				}
+			}
+			assert.Empty(t, wantAgents)
+			wantStages := map[string]RunnerSpec{stageFind: {}, stageSynthesis: synthesis, stageVerify: verify}
+			require.Len(t, report.Stats.Stages, len(wantStages))
+			for _, stage := range report.Stats.Stages {
+				want, ok := wantStages[stage.Name]
+				require.True(t, ok, "unexpected or duplicate stage %q", stage.Name)
+				delete(wantStages, stage.Name)
+				assert.Equal(t, want.Executor, stage.Executor)
+				assert.Equal(t, want.Model, stage.Model)
+				assert.Equal(t, want.Effort, stage.Effort)
+			}
+			assert.Empty(t, wantStages)
+			for name, content := range h.archived {
+				if strings.HasPrefix(name, "prompts/") {
+					assert.Contains(t, seen(), content.String(), name)
+				}
+			}
+		})
+	}
+}
+
 func TestPipeline_Run(t *testing.T) {
 	h := newHarness(t)
 	h.cfg.NewRunner = h.runner(map[string]executor.Result{

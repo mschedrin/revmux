@@ -207,8 +207,9 @@ See `.claude/rules/pipeline.md`.
 
 ### Executor and lens are orthogonal
 
-A `model:` names `claude` or `codex` and nothing else.
-Anything else is a **load-time** error with a clear message, never a runtime surprise.
+A `model:` names `claude`, `codex`, or `opencode`.
+Any other executor is a **load-time** error with a clear message.
+OpenCode checks provider, model and variant availability when the review runs.
 
 There is no codex-specific prompt file and no per-entry prompt-path override.
 Codex is an entry whose `model:` names it, composing `lenses/adversarial.md`.
@@ -399,11 +400,13 @@ the `revmux config` payload, where an untagged field would emit `URL` rather tha
 - every lens named by a roster entry exists
 - every stage named by a profile's `stages:` block is one the pipeline dispatches — `synthesis` or
   `verify`, not merely a `prompts/*.md` that loaded
-- every `model:` parses: the binary is `claude` or `codex`, and an effort suffix is one of `low`,
-  `medium`, `high`, `xhigh`, `max`. `parseRunner` is the only way a runner is built, so it is the only
-  place either vocabulary is checked — a second check elsewhere is unreachable code pretending to guard
+- every `model:` parses: the binary is `claude`, `codex`, or `opencode`. Claude/Codex effort
+  suffixes are `low`, `medium`, `high`, `xhigh`, or `max`. OpenCode keeps native model IDs and
+  `#variant` in its model reference, with no legacy effort. `parseRunner` is the only entry point
+  for this syntax validation; OpenCode checks model and variant availability at runtime
 - `color`, when present, is an ANSI-16 name (`red`, `bright-blue`, …) or `#RRGGBB`
 - no duplicate agent names in one roster
+- no agent name ends in `.retry` (case-insensitive); that suffix is reserved for attempt archives
 - front matter parses, and a profile with no `agents` is an error rather than an empty run
 - front matter carries only the keys its own kind of file defines, so each kind declares its own shape
   rather than sharing one: `model` belongs to a profile, a roster entry and a stage, `agents` and

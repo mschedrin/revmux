@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 )
 
 // OpenCode runs the V2 CLI with a private server and native model#variant selection.
@@ -241,10 +242,18 @@ func openCodeError(raw json.RawMessage, emit func(Event)) error {
 	return fmt.Errorf("%s: %s", diagnostic.Type, text)
 }
 
-// openCodeJSON accepts fences and prose before the first JSON container.
-// An invalid or non-object container must not yield a nested or later answer.
+// openCodeJSON accepts fences and prose, including bracketed labels, before an object.
+// A JSON array or malformed object must not yield a nested or later answer.
 func openCodeJSON(text string) (json.RawMessage, error) {
 	start := strings.IndexAny(text, "{[")
+	for start >= 0 && text[start] == '[' {
+		end := openCodeLabelEnd(text[start:])
+		if end == 0 {
+			return nil, errors.New("no JSON object in OpenCode answer")
+		}
+		text = text[start+end:]
+		start = strings.IndexAny(text, "{[")
+	}
 	if start < 0 || text[start] != '{' {
 		return nil, errors.New("no JSON object in OpenCode answer")
 	}
@@ -253,4 +262,23 @@ func openCodeJSON(text string) (json.RawMessage, error) {
 		return nil, fmt.Errorf("invalid JSON object in OpenCode answer: %w", err)
 	}
 	return out, nil
+}
+
+// openCodeLabelEnd recognizes plain bracketed prose, not JSON values or containers.
+// Reject JSON punctuation so a malformed array cannot expose an inner object.
+func openCodeLabelEnd(text string) int {
+	end := strings.IndexByte(text, ']')
+	if end < 0 || json.Valid([]byte(text[:end+1])) {
+		return 0
+	}
+	label := strings.TrimSpace(text[1:end])
+	if label == "" || strings.IndexFunc(label, unicode.IsLetter) != 0 {
+		return 0
+	}
+	for _, r := range label {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !strings.ContainsRune(" ._/-+#", r) {
+			return 0
+		}
+	}
+	return end + 1
 }

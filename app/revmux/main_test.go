@@ -178,7 +178,7 @@ func TestRun_config(t *testing.T) {
 				assert.NotEmpty(t, a.Lenses, "agent %s carries no lens", a.Name)
 				if p.Name == "opencode-only" {
 					assert.Equal(t, "opencode", a.Executor)
-					assert.Empty(t, a.Model)
+					assert.Equal(t, "openai/gpt-6.1-sol#high", a.Model)
 					assert.Empty(t, a.Effort)
 				} else {
 					assert.NotEmpty(t, a.Model, "agent %s reports no model", a.Name)

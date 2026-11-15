@@ -57,6 +57,17 @@ func TestHelperProcess(t *testing.T) {
 	case "env":
 		fmt.Print(strings.Join(os.Environ(), "\n"))
 		syscall.Exit(0)
+	case "pwd-first":
+		dir := os.Getenv("PWD")
+		if dir == "" {
+			var err error
+			dir, err = os.Getwd()
+			if err != nil {
+				syscall.Exit(1)
+			}
+		}
+		fmt.Print(dir)
+		syscall.Exit(0)
 	case "echo":
 		_, _ = io.Copy(os.Stdout, os.Stdin)
 		syscall.Exit(0)

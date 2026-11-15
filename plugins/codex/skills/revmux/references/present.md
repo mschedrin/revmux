@@ -71,7 +71,8 @@ own rendering. Anything left standing immediately above it is not read.
 - the recommended answer goes first and is marked, with its reason inside that option's own description
 - **an option names what it acts on, never counts it** — "covering the two majors" is unanswerable and
   "covering the `uv` gate in `make test` and the `request_user_input` gap" is not
-- a code review recommends by Step 6's outcome table; a triage by the six-answer table in `triage.md`
+- a code review uses the outcome table in `SKILL.md` (Step 6 or “Code-review outcome table”);
+  a triage uses the six-answer table in `triage.md`
 
 Ask with the harness's own question tool rather than in prose, and end the turn on it.
 Nothing goes after the question.

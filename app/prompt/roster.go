@@ -242,6 +242,7 @@ func (a AgentSpec) validate(known map[string]struct{}) error {
 
 // checkName rejects a name that cannot become one path component. The archive turns it into
 // agents/<name>.jsonl and prompts/agents/<name>.md, so a separator would write outside the round.
+// The .retry suffix belongs to retry attempts and cannot name another agent.
 func (a AgentSpec) checkName() error {
 	switch {
 	case a.Name == "":
@@ -254,6 +255,8 @@ func (a AgentSpec) checkName() error {
 		return fmt.Errorf("agent %q references a parent directory", a.Name)
 	case strings.HasPrefix(a.Name, "."):
 		return fmt.Errorf("agent %q starts with a dot", a.Name)
+	case strings.HasSuffix(strings.ToLower(a.Name), ".retry"):
+		return fmt.Errorf("agent %q uses the reserved .retry suffix", a.Name)
 	}
 	return nil
 }

@@ -83,7 +83,7 @@ func TestDefaults_EveryProfileResolvesItsRoster(t *testing.T) {
 			colors[spec.Color] = spec.Name
 			if name == "opencode-only" {
 				assert.Equal(t, "opencode", spec.Executor)
-				assert.Empty(t, spec.Model, "use OpenCode's configured default")
+				assert.Equal(t, "openai/gpt-6.1-sol#high", spec.Model)
 				assert.Empty(t, spec.Effort)
 			} else {
 				assert.NotEmpty(t, spec.Model, "%s/%s: a roster entry must select a model", name, spec.Name)
@@ -109,7 +109,7 @@ func TestDefaults_EveryProfileResolvesEveryStage(t *testing.T) {
 			assert.NotEmpty(t, st.Executor, "%s/%s", name, stage)
 			if name == "opencode-only" {
 				assert.Equal(t, "opencode", st.Executor)
-				assert.Empty(t, st.Model)
+				assert.Equal(t, "openai/gpt-6.1-sol#high", st.Model)
 				assert.Empty(t, st.Effort)
 			} else {
 				assert.NotEmpty(t, st.Model, "%s/%s: a stage must select a model", name, stage)
@@ -169,7 +169,7 @@ func TestDefaults_OpenCodeLensOverride(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, specs, 1)
 	assert.Equal(t, "opencode", specs[0].Executor)
-	assert.Empty(t, specs[0].Model)
+	assert.Equal(t, "openai/gpt-6.1-sol#high", specs[0].Model)
 	assert.Empty(t, specs[0].Effort)
 }
 

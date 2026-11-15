@@ -89,7 +89,7 @@ The caller can prepare this small round directly; delegation is not required.
 
 | Profile | Review |
 |---|---|
-| `opencode-only` | Four OpenCode reviewers, OpenCode synthesis and verification; configured default model |
+| `opencode-only` | Four OpenCode reviewers, synthesis and verification on `openai/gpt-6.1-sol#high` |
 | `claude-only` | Four Claude reviewers and Claude stages |
 | `codex-only` | Four Codex reviewers and Codex stages |
 | `comprehensive` | Standard mixed-executor review |
@@ -151,6 +151,20 @@ Show finding locations, severity, verdict and actionable details.
 Use `question` for the next decision; include enough context inside the question.
 Do not change source files unless the user's request or selected action permits it.
 For a review-fix loop, read `references/loop.md` and preserve the same task ID.
+
+### Code-review outcome table
+
+Use the first matching row. Keep an explicit executor selection, such as
+`opencode-only`, for any later round.
+
+| The run returned | Recommend |
+|---|---|
+| `sources.degraded` non-empty | Re-run the missing source first; a partial review cannot establish a clean result. |
+| Any `critical` or `major` findings | Fix them, then run a new round on the same task; offer the loop if the user wants it. |
+| Only `minor` findings, all verified | Fix now or record for later; verification has assessed the cost and consequence. |
+| Only `minor` findings, some `unverified` | State that these findings were not verified and assess them before edits. |
+| Open questions and no findings | Answer the questions; they require decisions rather than edits. |
+| Nothing actionable | Finish. If a merge is next, offer a final check with the selected executor profile; otherwise use `final`. |
 
 For archive analysis or prompt tuning, use `scripts/analyze-corpus.py` and the
 resolved tasks directory. For questions only, read the references and answer

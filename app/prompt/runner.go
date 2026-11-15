@@ -16,11 +16,11 @@ type Runner struct {
 	Effort   string
 }
 
-// parseRunner reads `<executor>[/<model>][:<effort>]` — `claude`, `claude/opus:high`,
-// `codex/gpt-6.1-sol`, `codex:high`. The executor is mandatory and closed, so the value validates
-// itself; a trailing slash is rejected rather than accepted as a second spelling of the bare binary.
-// It splits on the first slash, so a model name carrying one survives, and on the last colon, whose
-// suffix must be a real effort — a typo'd `:hgih` is a load error, not part of the model name.
+// parseRunner reads Claude/Codex `<executor>[/<model>][:<effort>]` and OpenCode
+// `opencode[/<provider>/<model>[#<variant>]]`. The executor is mandatory for non-empty
+// selections, and a trailing slash is invalid. Claude/Codex split on the first slash
+// and last colon; their effort suffix must be known. OpenCode preserves native model
+// paths, colon tags and variants in Model, and leaves Effort empty.
 func parseRunner(s string) (Runner, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {

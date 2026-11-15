@@ -246,8 +246,9 @@
               <tr>
                 <td>ANTHROPIC_API_KEY</td>
                 <td class="prose">
-                  stripped from the child environment so <code>claude</code> uses interactive subscription auth.
-                  <code>--preserve-anthropic-api-key</code> passes it through
+                  stripped for Claude/Codex so <code>claude</code> uses interactive subscription auth.
+                  <code>--preserve-anthropic-api-key</code> retains it for those executors.
+                  OpenCode always retains it
                 </td>
               </tr>
               <tr>
@@ -342,7 +343,7 @@ claude/opus:hgih         <span class="c-crimson">refused: not an effort</span></
               <tr><td>final</td><td>both</td><td class="prose"><code>bugs+impl</code> plus the codex peer, nothing below major reported</td></tr>
               <tr><td>claude-only</td><td>claude</td><td class="prose">the four lens splits on claude alone</td></tr>
               <tr><td>codex-only</td><td>codex</td><td class="prose">the four lens splits on codex, both stages with them</td></tr>
-              <tr><td>opencode-only</td><td>opencode</td><td class="prose">four lens groups and both stages, using the configured OpenCode default</td></tr>
+              <tr><td>opencode-only</td><td>opencode</td><td class="prose">four lens groups and both stages, using <code>openai/gpt-6.1-sol#high</code></td></tr>
               <tr><td>grill-me</td><td>both</td><td class="prose">two lens splits, each run once on claude and once on codex</td></tr>
               <tr><td>expert</td><td>both</td><td class="prose">two agents at xhigh, each carrying all eight code lenses</td></tr>
               <tr><td>triage</td><td>both</td><td class="prose">a four-way panel over a filed item; wants <code>--no-synthesis</code></td></tr>
@@ -529,7 +530,8 @@ claude/opus:hgih         <span class="c-crimson">refused: not an effort</span></
           <li>No path separator, no <code>..</code>, not absolute, not starting with a dot.</li>
           <li>Containment is re-checked on the resolved path, because a symlink defeats the lexical test.</li>
           <li>A round may not be called <code>task.md</code>.</li>
-          <li>Roster agent names carry the same rule, applied when the profile loads.</li>
+          <li>Roster agent names carry the same rule, applied when the profile loads.
+            The suffix <code>.retry</code> is also reserved, case-insensitively, for attempt archives.</li>
           <li>
             A task name for <code>revmux cleanup</code> must be one task directly under the tasks root: a path,
             a <code>..</code>, a round name or a typo is an error and nothing is removed.

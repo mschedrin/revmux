@@ -155,8 +155,10 @@ claude --print --output-format stream-json --verbose
   revmux is often launched from inside an AI coding session, so the variable is inherited
   and the child refuses to start as a nested session.
   There is no case where passing it through is correct.
-- Strip `ANTHROPIC_API_KEY` by default so the child uses the interactive subscription auth rather than per-token billing.
-  Expose a `--preserve-anthropic-api-key` escape hatch for users who authenticate by API key.
+- For Claude/Codex, strip `ANTHROPIC_API_KEY` by default so Claude uses interactive subscription auth.
+  `--preserve-anthropic-api-key` retains it for those executors. OpenCode always retains provider API keys.
+- Remove inherited `PWD` for OpenCode. Its CLI prefers that value to the process directory;
+  removing it makes `--workdir` control project discovery and relative tool paths.
 - Never pass `--bare`. It forces API-key auth and skips project-instruction discovery,
   which changes billing and strips the project context every lens agent depends on.
 

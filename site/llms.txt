@@ -35,7 +35,7 @@ revmux runs a review and returns findings, and does nothing else. It performs no
 - Build with Go 1.26 or newer. The upstream Homebrew package does not contain this port.
 - From a clone: `make build` produces `.bin/revmux`, `make install` symlinks it into `/usr/local/bin`
 - The model CLIs the chosen profile names must be installed and authenticated; `preflight.sh` in the shipped skill checks any invocation
-- `opencode-only` uses four OpenCode reviewers and both stages with the configured default model.
+- `opencode-only` uses four OpenCode reviewers and both stages with `openai/gpt-6.1-sol#high`.
 - Native selection: `opencode/provider/model#variant`; each reviewer and stage can select a different model.
 - Copy `.opencode/skills/revmux/` to `~/.config/opencode/skills/revmux/` for full TUI and Mini callers.
 - OpenCode runs use JSON output, archived sessions and private servers. `#variant` selects reasoning;

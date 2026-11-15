@@ -21,6 +21,43 @@ import (
 	"github.com/umputun/revmux/app/prompt"
 )
 
+func TestFinder_OpenCodeRetry(t *testing.T) {
+	profile := strings.Replace(oneAgentProfile, "claude/opus", "opencode/provider/model#deep", 1)
+	h := newHarnessWith(t, map[string]string{"prompts/profiles/testprof.md": profile})
+	attempts := 0
+	h.cfg.NewRunner = func(spec RunnerSpec) Runner {
+		assert.Equal(t, "opencode", spec.Executor)
+		return &mocks.RunnerMock{RunFunc: func(_ context.Context, req executor.Request, _ executor.EventSink) (executor.Result, error) {
+			attempts++
+			assert.Equal(t, "provider/model#deep", req.Model)
+			_, _ = req.RawOutput.Write([]byte("raw attempt\n"))
+			if attempts == 1 {
+				return executor.Result{Tokens: 2}, errors.New("provider failed")
+			}
+			return executor.Result{Tokens: 3, StructuredOutput: findingsJSON()}, nil
+		}}
+	}
+	p := New(h.cfg)
+	drain(p)
+	report, err := p.Run(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 2, attempts)
+	assert.Equal(t, 5, report.Stats.Tokens)
+	require.NotNil(t, h.get("agents/solo.jsonl"))
+	require.NotNil(t, h.get("agents/solo.retry.jsonl"))
+	assert.Equal(t, "raw attempt\n", h.get("agents/solo.retry.jsonl").String())
+}
+
+func TestFinder_unknownExecutor(t *testing.T) {
+	h := newHarness(t)
+	spec := h.cfg.Roster[0]
+	spec.Executor = "unknown"
+	f := h.finder(func(Event) {})
+	res := f.runAgent(context.Background(), spec, 0)
+	require.ErrorContains(t, res.err, "unknown executor")
+	assert.Nil(t, h.get("prompts/agents/bugs.md"))
+}
+
 func TestFinder_run(t *testing.T) {
 	t.Run("collects one result per roster entry", func(t *testing.T) {
 		h := newHarness(t)

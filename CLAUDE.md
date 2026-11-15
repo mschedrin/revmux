@@ -298,7 +298,8 @@ A round name additionally passes `task.CheckRoundName`, which refuses the one en
 beside its rounds: `task.md`.
 A round carrying that name is read as the task's own metadata rather than as a round, so it is invisible to
 the prior-round inventory and unreachable by the name it was created under.
-Roster agent names carry the same rule, applied at load in `prompt.AgentSpec.checkName` — but not the paths
+Roster agent names carry the same rule, applied at load in `prompt.AgentSpec.checkName`, and also reject
+the `.retry` suffix case-insensitively to prevent attempt archives from colliding. This does not apply to the paths
 `Archive.Writer` takes, which are relative and must allow a separator because `agents/`, `stages/` and
 `prompts/` all need one.
 Names revmux **derives** rather than reads — a verify group's label — are sanitized instead, since their

@@ -88,7 +88,10 @@ Use native OpenCode references in revmux profiles:
 model: opencode
 ```
 
-The bare executor uses OpenCode's configured default.
+The bare executor uses OpenCode's configured default. This was the profile's initial selection.
+After the port was complete, the user requested `opencode/openai/gpt-6.1-sol#high` as the
+shipped `opencode-only` selection for all reviewers and both stages. The profile and its tests
+now require that pin; bare `opencode` remains supported in custom profiles.
 For a pinned selection, the grammar is:
 
 ```text
@@ -275,10 +278,13 @@ Only change the launcher if a verified configuration requirement needs it; add f
 - Modify: `app/prompt/defaults_test.go`, `app/prompt/prompt_test.go`
 - Modify: `app/initcmd_test.go`, `app/main_test.go`, `app/introspect_test.go`
 
-- [x] Add the four standard lens groups with authored colors and `model: opencode`.
+- [x] Add the four standard lens groups with authored colors. Initially used `model: opencode`;
+  the later user-requested selection is `model: opencode/openai/gpt-6.1-sol#high`.
 - [x] Keep the stable code-review severity and reporting blocks consistent with the existing equivalent profiles.
 - [x] Update all literal profile inventories from eight to nine.
-- [x] Make the configured-default exception explicit in shipped-profile tests: only OpenCode may have an empty model/effort, and its default must remain empty rather than resolve to Claude settings.
+- [x] Initially test the configured-default profile with empty model/effort. After the requested
+  model pin, shipped-profile tests require `openai/gpt-6.1-sol#high` and empty legacy effort.
+  Parser tests retain coverage for bare OpenCode defaults and rejection of foreign inheritance.
 - [x] Test every stage and `--lenses` on OpenCode, plus a custom profile with different native model references per reviewer and stage.
 - [x] Run profile, initialization, and catalog tests. `go test ./app/prompt ./app` passed.
 

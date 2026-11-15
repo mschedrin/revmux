@@ -32,7 +32,7 @@ type runSpec struct {
 	shareTouch func(func())
 }
 
-// proc is the machinery Claude and Codex share: start, idle watchdog, process-group teardown, line
+// proc is the machinery all executors share: start, idle watchdog, process-group teardown, line
 // reading. It holds immutable configuration only — one instance serves every roster entry concurrently,
 // so any per-run state would be a data race.
 type proc struct {
@@ -204,6 +204,9 @@ func (p *proc) childEnv() []string {
 	for _, kv := range src {
 		switch name, _, _ := strings.Cut(kv, "="); {
 		case name == "CLAUDECODE":
+		case name == "PWD" && p.bin == "opencode":
+			// OpenCode prefers PWD to the process directory. Drop the caller's value
+			// so it uses cmd.Dir, including when --workdir selects another checkout.
 		case name == "ANTHROPIC_API_KEY" && p.bin != "opencode" && !p.opts.PreserveAPIKey:
 		default:
 			out = append(out, kv)

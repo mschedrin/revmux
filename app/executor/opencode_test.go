@@ -118,6 +118,10 @@ func TestOpenCode_Run_answers(t *testing.T) {
 		{"clean", `{"findings":[]}`, `{"findings":[]}`},
 		{"fenced", "```json\n{\"findings\":[]}\n```", `{"findings":[]}`},
 		{"prose", "Result:\n{\"findings\":[]}\nDone.", `{"findings":[]}`},
+		{"bracketed path", "Results for [scope.md]:\n{\"findings\":[]}", `{"findings":[]}`},
+		{"markdown link", "Results for [file](src/file.go):\n{\"findings\":[]}", `{"findings":[]}`},
+		{"multiple labels", "See [src/file.go] and [test results].\n{\"findings\":[]}", `{"findings":[]}`},
+		{"label then fenced object", "For [scope.md]:\n```json\n{\"findings\":[]}\n```", `{"findings":[]}`},
 		{"finding", finding, finding},
 		{"wrapped finding", "Result:\n```json\n" + finding + "\n```\nDone.", finding},
 		{"no JSON", "Nothing found.", ""},
@@ -128,6 +132,18 @@ func TestOpenCode_Run_answers(t *testing.T) {
 		{"fenced malformed outer", "```json\n{\"findings\":invalid,\"fallback\":{\"findings\":[]}}\n```", ""},
 		{"later fallback", `{"findings":invalid} {"findings":[]}`, ""},
 		{"array wrapper", `[{"findings":[]}]`, ""},
+		{"array before object", `[] {"findings":[]}`, ""},
+		{"literal array before object", `[false] {"findings":[]}`, ""},
+		{"string array before object", `["scope.md"] {"findings":[]}`, ""},
+		{"number array before object", `[1] {"findings":[]}`, ""},
+		{"malformed array wrapper", `[invalid, {"findings":[]}]`, ""},
+		{"malformed array before object", `[false,] {"findings":[]}`, ""},
+		{"truncated array wrapper", `[{"findings":[]}`, ""},
+		{"nested array wrapper", `[[{"findings":[]}]]`, ""},
+		{"label before array", `For [scope.md]: [{"findings":[]}]`, ""},
+		{"label before malformed object", `For [scope.md]: {"findings":invalid} {"findings":[]}`, ""},
+		{"label without answer", "Results for [scope.md]", ""},
+		{"unclosed label", `Results for [scope.md: {"findings":[]}`, ""},
 		{"limit words are content", `{"findings":[],"note":"rate limit exceeded"}`, `{"findings":[],"note":"rate limit exceeded"}`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -288,6 +304,7 @@ func TestOpenCode_Run_stderrAndExit(t *testing.T) {
 func TestOpenCode_Run_environment(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "test-provider-key")
 	t.Setenv("CLAUDECODE", "nested")
+	t.Setenv("PWD", "/caller/checkout")
 	for _, kind := range []string{"opencode", "codex"} {
 		t.Run(kind, func(t *testing.T) {
 			runner := fakeRunner("env", "-")
@@ -295,11 +312,40 @@ func TestOpenCode_Run_environment(t *testing.T) {
 			if kind == "opencode" {
 				res, _ = executor.NewOpenCode(runner, executor.Opts{}).Run(context.Background(), executor.Request{}, nil)
 				assert.Contains(t, res.Raw, "ANTHROPIC_API_KEY=test-provider-key")
+				assert.NotRegexp(t, `(?m)^PWD=`, res.Raw)
 			} else {
 				res, _ = executor.NewCodex(runner, executor.Opts{}).Run(context.Background(), executor.Request{}, nil)
 				assert.NotContains(t, res.Raw, "ANTHROPIC_API_KEY=")
+				assert.Contains(t, res.Raw, "PWD=/caller/checkout")
 			}
 			assert.NotContains(t, res.Raw, "CLAUDECODE=")
+		})
+	}
+}
+
+func TestOpenCode_Run_workDir(t *testing.T) {
+	caller, target := t.TempDir(), t.TempDir()
+	t.Chdir(caller)
+	t.Setenv("PWD", caller)
+	relative, err := filepath.Rel(caller, target)
+	require.NoError(t, err)
+	for _, tt := range []struct {
+		name, workdir, want string
+	}{
+		{"another checkout", target, target},
+		{"relative checkout", relative, target},
+		{"inherited directory", "", caller},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			c := executor.NewOpenCode(fakeRunner("pwd-first", "-"), executor.Opts{WorkDir: tt.workdir})
+			res, runErr := c.Run(context.Background(), executor.Request{}, nil)
+			require.Error(t, runErr, "the helper reports a path rather than a model stream")
+			require.Zero(t, res.ExitCode)
+			got, pathErr := filepath.EvalSymlinks(res.Raw)
+			require.NoError(t, pathErr)
+			want, pathErr := filepath.EvalSymlinks(tt.want)
+			require.NoError(t, pathErr)
+			assert.Equal(t, want, got, "OpenCode's PWD-first lookup must use the review directory")
 		})
 	}
 }
