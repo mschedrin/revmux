@@ -77,7 +77,8 @@ Write only the input paths returned by that command:
 
 - `scope`: what to review, diff commands, important paths, explicit exclusions.
 - `goal`: the requested result and acceptance criteria, if known.
-- `context`: relevant ticket or design material, if needed.
+- `context`: a directory for relevant ticket or design material, if needed.
+  Create the directory, then write files inside it. Do not write the path as a file.
 - `task_file`: fill description and known URL, branch and base after reading it.
 
 Keep scope and goal short. Do not copy the diff into them.

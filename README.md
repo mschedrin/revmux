@@ -4,8 +4,8 @@
 
 **[Fork source](https://github.com/mschedrin/revmux)** · [Documentation](site/docs.html) · [Reference](site/reference.html) · [Releases](https://github.com/mschedrin/revmux/releases)
 
-This fork adds OpenCode V2 support to upstream **v0.2.7**
-(`3260c28ca3d202783a16d7ff4925a069119c428e`). It does not include later upstream changes.
+This fork adds OpenCode V2 support to upstream `master`
+at `8c00418688a92032a976362b2a21973fb62583d5`.
 The maintained branch is `feat/opencode-v2`. OpenCode integration was tested with **v2.3.0**.
 
 revmux runs a structured multi-agent review. It supervises Claude, Codex and `opencode run`

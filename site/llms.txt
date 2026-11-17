@@ -30,7 +30,7 @@ revmux runs a review and returns findings, and does nothing else. It performs no
 
 ## Install
 
-- Fork base: upstream v0.2.7, SHA 3260c28ca3d202783a16d7ff4925a069119c428e; OpenCode tested at v2.3.0.
+- Fork base: upstream master, SHA 8c00418688a92032a976362b2a21973fb62583d5; OpenCode tested at v2.3.0.
 - Clone: `git clone --branch feat/opencode-v2 https://github.com/mschedrin/revmux.git`
 - Build with Go 1.26 or newer. The upstream Homebrew package does not contain this port.
 - From a clone: `make build` produces `.bin/revmux`, `make install` symlinks it into `/usr/local/bin`
