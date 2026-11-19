@@ -347,7 +347,7 @@ A roster entry also carries an optional `color` — an ANSI-16 name or `#RRGGBB`
 and handed to both renderers, so the TUI and `--no-tui` never color the same agent differently.
 
 **One `model:` string is the whole runner selection, and a profile's covers the whole review.**
-`<binary>[/<model>][:<effort>]` — `claude`, `claude/opus:high`, `codex/gpt-6.1-sol`. There is no `executor:`
+`<binary>[/<model>][:<effort>]` — `claude`, `claude/opus:high`, `codex/gpt-6.2-sol`. There is no `executor:`
 key and no `effort:` key in any prompt file.
 OpenCode uses `opencode[/provider/model[#variant]]` instead. Its model preserves native colon tags,
 extra slashes and custom variants; effort stays empty. It never inherits a foreign model or legacy effort.

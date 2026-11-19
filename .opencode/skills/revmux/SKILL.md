@@ -90,7 +90,7 @@ The caller can prepare this small round directly; delegation is not required.
 
 | Profile | Review |
 |---|---|
-| `opencode-only` | Four OpenCode reviewers, synthesis and verification on `openai/gpt-6.1-sol#high` |
+| `opencode-only` | Four OpenCode reviewers, synthesis and verification on `openai/gpt-6.2-sol#high` |
 | `claude-only` | Four Claude reviewers and Claude stages |
 | `codex-only` | Four Codex reviewers and Codex stages |
 | `comprehensive` | Standard mixed-executor review |

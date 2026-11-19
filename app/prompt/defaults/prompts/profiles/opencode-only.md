@@ -1,6 +1,6 @@
 ---
 description: all eight lenses across four OpenCode agents, with OpenCode synthesis and verification
-model: opencode/openai/gpt-6.1-sol#high
+model: opencode/openai/gpt-6.2-sol#high
 agents:
   - {name: bugs+impl,    lenses: [bugs, impl],            color: cyan}
   - {name: arch+quality, lenses: [architecture, quality], color: magenta}

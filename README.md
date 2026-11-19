@@ -116,7 +116,7 @@ Ask OpenCode to “review this branch with revmux, OpenCode only” from the ful
 The project skill is discovered in this clone; the global copy makes it available in other projects.
 OpenCode loads skills with the same tools in both interfaces. Mini is a caller, not a reviewer executor.
 
-`opencode-only` runs four lens groups and both model stages on `openai/gpt-6.1-sol#high`.
+`opencode-only` runs four lens groups and both model stages on `openai/gpt-6.2-sol#high`.
 Custom profiles can select models independently. These are placeholder IDs; use your current catalog:
 
 ```yaml
@@ -315,8 +315,8 @@ model: claude/opus:high
 agents:
   - {name: money,     lenses: [bugs, impl, payments],   color: red}
   - {name: contracts, lenses: [architecture, docs],     color: cyan}
-  - {name: peer,      lenses: [adversarial], model: codex/gpt-6.1-sol:xhigh}
-  - {name: second,    lenses: [bugs],        model: codex/gpt-6.1-sol:high}
+  - {name: peer,      lenses: [adversarial], model: codex/gpt-6.2-sol:xhigh}
+  - {name: second,    lenses: [bugs],        model: codex/gpt-6.2-sol:high}
 stages:
   synthesis: claude/opus:high
   verify:    claude/sonnet:low
